@@ -128,7 +128,7 @@ export default function Home() {
     setSearchResults(results.slice(0, maxResults));
   }, [searchTerm, plants, maxResults, searchOptions]);
 
-  const images = selected ? extractImagesWithPaths(selected) : allImages;
+  const images: any = selected ? extractImagesWithPaths(selected) : allImages;
 
   return (
     <div className="w-full h-screen bg-background text-foreground flex flex-col">
@@ -348,7 +348,7 @@ export default function Home() {
             </CardHeader>
             <CardContent className="space-y-4">
               {images.length > 0 ? (
-                images.map((img, idx) => (
+                images.map((img: any, idx: any) => (
                   <div key={idx} className="space-y-1">
                     <p className="text-sm text-muted-foreground break-words font-mono">
                       {img.path}
