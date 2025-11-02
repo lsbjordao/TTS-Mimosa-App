@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  basePath: "/TTS-Mimosa-Descriptions",
+  basePath: "/TTS-Mimosa-App",
   output: "export",
   reactStrictMode: true,
   images: {
