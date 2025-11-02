@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { JSX } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { Search, Settings } from "lucide-react";
+import { Search, Settings, Quote } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -115,11 +115,21 @@ export default function Home() {
       {/* 🔍 Cabeçalho */}
       <header className="border-b border-border bg-card p-3 flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <div className="flex flex-col text-left leading-tight font-medium mr-2" style={{ fontSize: "8px" }}>
+          <div className="flex flex-col text-left leading-tight font-medium mr-2" style={{ fontSize: "9px" }}>
             <span>Type</span>
             <span>Taxon</span>
             <span>Script</span>
           </div>
+          {/* Ícone de citação com link */}
+          <a
+            href="https://doi.org/10.1093/biomethods/bpae017"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center"
+            title="How to cite"
+          >
+            <Quote className="w-2.5 h-2.5 text-muted-foreground hover:text-primary transition" />
+          </a>
           <Search className="w-5 h-5 text-muted-foreground" />
           <Input
             type="text"
