@@ -128,7 +128,7 @@ export default function Home() {
             className="flex items-center"
             title="How to cite"
           >
-            <Quote className="w-2.5 h-2.5 text-muted-foreground hover:text-primary transition" />
+            <Quote className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
           </a>
           <Search className="w-5 h-5 text-muted-foreground" />
           <Input
