@@ -1,65 +1,362 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
+import { Search, Settings } from "lucide-react";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+
+const JSONGrid = dynamic(() => import("@redheadphone/react-json-grid"), {
+  ssr: false,
+});
+
+// ---------- Função auxiliar: extrai imagens ----------
+function extractImagesWithPaths(obj: any, path: string[] = []) {
+  let results: { path: string; url: string; legend?: string }[] = [];
+  if (Array.isArray(obj)) {
+    obj.forEach((item, i) =>
+      results.push(...extractImagesWithPaths(item, [...path, `[${i}]`]))
+    );
+  } else if (typeof obj === "object" && obj !== null) {
+    let url, legend;
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === "imageUrl") url = value as string;
+      else if (key === "imageUrlLegend") legend = value as string;
+      else results.push(...extractImagesWithPaths(value, [...path, key]));
+    }
+    if (url) results.push({ path: path.join(".") || "root", url, legend });
+  }
+  return results;
+}
+
+// ---------- Busca recursiva ----------
+function searchInJSON(
+  obj: any,
+  term: string,
+  options: { searchKeys: boolean; searchValues: boolean },
+  path: string[] = []
+): { path: string; value: string }[] {
+  if (!term) return [];
+  const results: { path: string; value: string }[] = [];
+
+  if (typeof obj === "object" && obj !== null) {
+    for (const [key, value] of Object.entries(obj)) {
+      if (options.searchKeys && key.toLowerCase().includes(term.toLowerCase())) {
+        results.push({ path: [...path, key].join("."), value: "(key match)" });
+      }
+
+      if (options.searchValues && typeof value === "string" && value.toLowerCase().includes(term.toLowerCase())) {
+        results.push({ path: [...path, key].join("."), value });
+      }
+
+      results.push(...searchInJSON(value, term, options, [...path, key]));
+    }
+  } else if (Array.isArray(obj)) {
+    obj.forEach((item, i) =>
+      results.push(...searchInJSON(item, term, options, [...path, `[${i}]`]))
+    );
+  }
+
+  return results;
+}
 
 export default function Home() {
+  const [plants, setPlants] = useState<any[]>([]);
+  const [selected, setSelected] = useState<any | null>(null);
+  const [modalIndex, setModalIndex] = useState<number | null>(null);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<
+    { path: string; value: string; specificEpithet?: string }[]
+  >([]);
+
+  const [maxResults, setMaxResults] = useState(20);
+  const [searchOptions, setSearchOptions] = useState({
+    searchKeys: true,
+    searchValues: true,
+  });
+
+  useEffect(() => {
+    fetch("/data/MimosaDB.json")
+      .then((res) => res.json())
+      .then((data) => setPlants(data));
+  }, []);
+
+  // ---------- Atualiza busca ----------
+  useEffect(() => {
+    if (!searchTerm) {
+      setSearchResults([]);
+      return;
+    }
+
+    const results: { path: string; value: string; specificEpithet?: string }[] = [];
+    for (const plant of plants) {
+      const hits = searchInJSON(plant, searchTerm, searchOptions);
+      hits.forEach((h) =>
+        results.push({ ...h, specificEpithet: plant.specificEpithet })
+      );
+    }
+    setSearchResults(results.slice(0, maxResults));
+  }, [searchTerm, plants, maxResults, searchOptions]);
+
+  const images = selected ? extractImagesWithPaths(selected) : [];
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="w-full h-screen bg-background text-foreground flex flex-col">
+      {/* 🔍 Cabeçalho */}
+      <header className="border-b border-border bg-card p-3 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <Search className="w-5 h-5 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Buscar em todo o JSON..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1"
+          />
+
+          {/* ⚙️ Configurações */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="p-2 rounded-md hover:bg-muted transition"
+                title="Configurações de busca"
+              >
+                <Settings className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64">
+              <div className="flex flex-col gap-3">
+                <h4 className="font-medium text-sm mb-1">Configurações da busca</h4>
+
+                {/* Limite de resultados */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">Limite de resultados:</label>
+                  <select
+                    aria-label="Limite de resultados"
+                    value={maxResults}
+                    onChange={(e) => setMaxResults(Number(e.target.value))}
+                    className="border rounded-md p-1 bg-background text-foreground"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20 (padrão)</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={500}>500</option>
+                    <option value={1000}>Máximo</option>
+                  </select>
+                </div>
+
+                {/* Onde buscar */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">Buscar em:</label>
+                  <div className="flex flex-col gap-1 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={searchOptions.searchKeys}
+                        onChange={(e) =>
+                          setSearchOptions({
+                            ...searchOptions,
+                            searchKeys: e.target.checked,
+                          })
+                        }
+                      />
+                      Chaves (keys)
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={searchOptions.searchValues}
+                        onChange={(e) =>
+                          setSearchOptions({
+                            ...searchOptions,
+                            searchValues: e.target.checked,
+                          })
+                        }
+                      />
+                      Valores (values)
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* Resultados da busca */}
+        {searchResults.length > 0 && (
+          <div className="border border-border rounded-md bg-background mt-1 max-h-48 overflow-auto">
+            {searchResults.map((r, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  const match = plants.find(
+                    (p) => p.specificEpithet === r.specificEpithet
+                  );
+                  setSelected(match || null);
+                  setSearchTerm("");
+                  setSearchResults([]);
+                }}
+                className="w-full text-left px-2 py-1 hover:bg-muted border-b border-border last:border-none flex justify-between items-center"
+              >
+                <div>
+                  <p className="text-sm font-mono break-words text-primary">{r.path}</p>
+                  <p className="text-xs text-muted-foreground truncate">{r.value}</p>
+                </div>
+                <span className="text-xs font-semibold text-right text-foreground ml-2">
+                  {"Mimosa " + r.specificEpithet}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </header>
+
+      {/* 🧩 Corpo principal */}
+      <div className="grid grid-cols-[250px_1fr_300px] flex-1 w-full overflow-hidden">
+        {/* Sidebar esquerda */}
+        <ScrollArea className="border-r border-border p-3 h-full overflow-auto dark-scrollbar">
+          <Card className="bg-card text-card-foreground">
+            <CardHeader>
+              <CardTitle>Taxon</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {plants.map((p, i) => (
+                <button
+                  key={i}
+                  className={`w-full text-left px-2 py-1 rounded hover:bg-muted ${
+                    selected?.specificEpithet === p.specificEpithet ? "bg-muted" : ""
+                  }`}
+                  onClick={() => setSelected(p)}
+                >
+                  <i>Mimosa {p.specificEpithet || "sp."}</i>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+        </ScrollArea>
+
+        {/* Painel central */}
+        <main className="p-3 h-full overflow-auto dark-scrollbar bg-background">
+          {selected ? (
+            <Card className="bg-card text-card-foreground min-w-full">
+              <CardHeader>
+                <CardTitle>
+                  <i>Mimosa {selected.specificEpithet}</i>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-auto dark-scrollbar max-h-[calc(100vh-185px)]">
+                <div className="inline-block min-w-max">
+                  <JSONGrid data={selected} defaultExpandDepth={Infinity} />
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <p className="text-muted-foreground">Selecione uma espécie à esquerda.</p>
+          )}
+        </main>
+
+        {/* Painel direito */}
+        <ScrollArea className="border-l border-border p-3 h-full overflow-auto dark-scrollbar">
+          <Card className="bg-card text-card-foreground w-full max-w-full box-border">
+            <CardHeader>
+              <CardTitle>Images</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {images.length > 0 ? (
+                images.map((img, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <p className="text-sm text-muted-foreground break-words font-mono">{img.path}</p>
+                    <div
+                      className="bg-muted rounded overflow-hidden cursor-pointer flex justify-center"
+                      onClick={() => setModalIndex(idx)}
+                    >
+                      <Image
+                        src={img.url}
+                        alt={`Imagem ${idx + 1}`}
+                        width={800}
+                        height={600}
+                        className="h-auto object-contain"
+                      />
+                    </div>
+                    {img.legend && (
+                      <p className="text-xs text-muted-foreground italic text-center">{img.legend}</p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted-foreground">None found.</p>
+              )}
+            </CardContent>
+          </Card>
+        </ScrollArea>
+      </div>
+
+      {/* Modal */}
+      {modalIndex !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={() => setModalIndex(null)}
+        >
+          {/* Fundo desfocado */}
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-md" />
+
+          <div
+            className="relative w-full max-w-screen-lg flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
           >
+            {/* Botão de fechar */}
+            <button
+              onClick={() => setModalIndex(null)}
+              className="absolute top-2 right-2 text-white bg-gray-800/70 rounded-full w-8 h-8 flex items-center justify-center hover:bg-gray-700 transition"
+            >
+              ✕
+            </button>
+
+            {/* Setas */}
+            <button
+              onClick={() =>
+                setModalIndex((prev) => (prev! - 1 + images.length) % images.length)
+              }
+              className="absolute left-2 top-1/2 -translate-y-1/2 text-white bg-gray-800/70 rounded-full w-10 h-10 flex items-center justify-center hover:bg-gray-700 transition"
+            >
+              ◀
+            </button>
+            <button
+              onClick={() =>
+                setModalIndex((prev) => (prev! + 1) % images.length)
+              }
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-white bg-gray-800/70 rounded-full w-10 h-10 flex items-center justify-center hover:bg-gray-700 transition"
+            >
+              ▶
+            </button>
+
+            {/* Imagem */}
             <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+              src={images[modalIndex].url}
+              alt={images[modalIndex].legend || "Imagem expandida"}
+              width={1920}
+              height={1080}
+              style={{ width: "100%", height: "auto" }}
+              className="rounded"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+            {/* Legenda */}
+            {images[modalIndex].legend && (
+              <p className="text-gray-300 text-sm text-center mt-2">{images[modalIndex].legend}</p>
+            )}
+          </div>
         </div>
-      </main>
+      )}
     </div>
   );
 }
