@@ -6,4 +6,4 @@ The project TTS-Mimosa-App is a web application built with Next.js and TypeScrip
 
 # TypeTaxonScript
 
-the project TTS-Mimosa is developed under the TypeTaxonScript principles, a new way to develop collaborative and well-documented taxonomic descriptions using TypeScript.
+The project [TTS-Mimosa](https://github.com/lsbjordao/TTS-Mimosa) is developed under the TypeTaxonScript principles, a new way to develop collaborative and well-documented taxonomic descriptions using TypeScript.
