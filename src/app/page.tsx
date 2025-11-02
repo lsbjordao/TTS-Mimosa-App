@@ -85,7 +85,7 @@ export default function Home() {
   });
 
   useEffect(() => {
-    fetch("TTS-Mimosa-App/data/MimosaDB.json")
+    fetch("/data/MimosaDB.json")
       .then((res) => res.json())
       .then((data) => setPlants(data));
   }, []);
