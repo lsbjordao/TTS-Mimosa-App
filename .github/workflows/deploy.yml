@@ -44,10 +44,6 @@ jobs:
       - name: Build with Next.js
         run: npm run build
 
-      # 6️⃣ Export static HTML
-      - name: Static HTML export
-        run: npm run export
-
       # 7️⃣ Add .nojekyll file
       - name: Add .nojekyll
         run: touch ./out/.nojekyll
