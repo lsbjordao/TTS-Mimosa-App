@@ -114,11 +114,7 @@ export default function Home() {
       {/* 🔍 Cabeçalho */}
       <header className="border-b border-border bg-card p-3 flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <Image
-            src="/TTS-Mimosa-App/tts.png"
-            alt="TypeTaxonScript Logo"
-            className="h-5 w-auto"
-          />
+          TypeTaxonScript
           <Search className="w-5 h-5 text-muted-foreground" />
           <Input
             type="text"
@@ -267,6 +263,11 @@ export default function Home() {
           ) : (
             <p className="text-muted-foreground">Selecione uma espécie à esquerda.</p>
           )}
+          <Image
+            src="/TTS-Mimosa-App/tts.png"
+            alt="TypeTaxonScript Logo"
+            className="w-auto"
+          />
         </main>
 
         {/* Painel direito */}
