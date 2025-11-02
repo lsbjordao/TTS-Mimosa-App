@@ -141,7 +141,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center"
-            title="How to cite"
+            title="Docs"
           >
             <BookOpenText className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
           </a>
