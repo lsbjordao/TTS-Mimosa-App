@@ -117,8 +117,8 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <b
             onClick={() => window.location.reload()}
-            className="cursor-pointer hover:underline hover:animate-pulse transition"
-            title="Reload app"
+            className="cursor-pointer transition-transform hover:scale-105"
+            title="Clique para recarregar o TTS-Mimosa"
           >
             TTS-Mimosa
           </b>
