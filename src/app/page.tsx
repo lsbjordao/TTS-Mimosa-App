@@ -166,11 +166,11 @@ export default function Home() {
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64">
               <div className="flex flex-col gap-3">
-                <h4 className="font-medium text-sm mb-1">Configurações da busca</h4>
+                <h4 className="font-medium text-sm mb-1">Search config.</h4>
 
                 {/* Limite de resultados */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-muted-foreground">Limite de resultados:</label>
+                  <label className="text-xs text-muted-foreground">Result limit:</label>
                   <select
                     aria-label="Limite de resultados"
                     value={maxResults}
@@ -178,17 +178,17 @@ export default function Home() {
                     className="border rounded-md p-1 bg-background text-foreground"
                   >
                     <option value={10}>10</option>
-                    <option value={20}>20 (padrão)</option>
+                    <option value={20}>20 (default)</option>
                     <option value={50}>50</option>
                     <option value={100}>100</option>
                     <option value={500}>500</option>
-                    <option value={1000}>Máximo</option>
+                    <option value={1000}>Max</option>
                   </select>
                 </div>
 
                 {/* Onde buscar */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-muted-foreground">Buscar em:</label>
+                  <label className="text-xs text-muted-foreground">Search in:</label>
                   <div className="flex flex-col gap-1 text-sm">
                     <label className="flex items-center gap-2">
                       <input
@@ -201,7 +201,7 @@ export default function Home() {
                           })
                         }
                       />
-                      Chaves (keys)
+                      Keys
                     </label>
                     <label className="flex items-center gap-2">
                       <input
@@ -214,7 +214,7 @@ export default function Home() {
                           })
                         }
                       />
-                      Valores (values)
+                      Values
                     </label>
                   </div>
                 </div>
