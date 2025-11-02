@@ -4,7 +4,10 @@ import { Inter } from "next/font/google";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "TTS-Mimosa"
+  title: "TTS-Mimosa",
+  icons: {
+    icon: "/favicon.ico", // ou /favicon.ico, conforme o arquivo que você tiver
+  }
 };
 
 export default function RootLayout({
