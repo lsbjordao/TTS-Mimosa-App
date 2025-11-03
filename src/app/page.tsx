@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import type { JSX } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { Search, Settings, Quote, Github, BookOpenText, FileText } from "lucide-react";
+import {
+  Search,
+  Settings,
+  Github,
+  BookOpenText,
+  FileText,
+} from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -142,6 +148,27 @@ export default function Home() {
   }, [searchTerm, plants, maxResults, searchOptions]);
 
   const images: any = selected ? extractImagesWithPaths(selected) : allImages;
+
+  // ---------- Controle do modal ----------
+  const closeModal = () => setModalIndex(null);
+  const showPrev = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setModalIndex((prev) => (prev! > 0 ? prev! - 1 : images.length - 1));
+  };
+  const showNext = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setModalIndex((prev) => (prev! < images.length - 1 ? prev! + 1 : 0));
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeModal();
+      if (e.key === "ArrowLeft") showPrev();
+      if (e.key === "ArrowRight") showNext();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [images.length]);
 
   return (
     <div className="w-full h-screen bg-background text-foreground flex flex-col">
@@ -364,6 +391,50 @@ export default function Home() {
           </Card>
         </ScrollArea>
       </div>
+
+      {/* 🖼️ Modal de imagem */}
+      {modalIndex !== null && images[modalIndex] && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center"
+          onClick={closeModal}
+        >
+          <button
+            onClick={closeModal}
+            className="absolute top-4 right-6 text-white text-3xl font-light hover:text-primary transition"
+          >
+            ×
+          </button>
+
+          <button
+            onClick={showPrev}
+            className="absolute left-4 text-white text-5xl font-light hover:text-primary transition select-none"
+          >
+            ‹
+          </button>
+
+          <div className="max-w-[90vw] max-h-[80vh] flex flex-col items-center">
+            <Image
+              src={images[modalIndex].url}
+              alt={`Imagem ${modalIndex + 1}`}
+              width={1200}
+              height={900}
+              className="object-contain max-h-[80vh]"
+            />
+            {images[modalIndex].legend && (
+              <p className="text-sm text-muted-foreground italic mt-2 text-center text-white">
+                {images[modalIndex].legend}
+              </p>
+            )}
+          </div>
+
+          <button
+            onClick={showNext}
+            className="absolute right-4 text-white text-5xl font-light hover:text-primary transition select-none"
+          >
+            ›
+          </button>
+        </div>
+      )}
     </div>
   );
 }
