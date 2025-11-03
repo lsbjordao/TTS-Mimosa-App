@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { JSX } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { Search, Settings, Quote, Github, BookOpenText } from "lucide-react";
+import { Search, Settings, Quote, Github, BookOpenText, FileText } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -142,8 +142,16 @@ export default function Home() {
           >
             TTS-Mimosa
           </b>
-
           <a
+            href="https://doi.org/10.1093/biomethods/bpae017"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center"
+            title="Foundational paper"
+          >
+            <FileText className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
+          </a>
+          {/* <a
             href="https://doi.org/10.1093/biomethods/bpae017"
             target="_blank"
             rel="noopener noreferrer"
@@ -151,7 +159,7 @@ export default function Home() {
             title="How to cite"
           >
             <Quote className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
-          </a>
+          </a> */}
           <a
             href="https://github.com/lsbjordao/TTS-Mimosa"
             target="_blank"
