@@ -191,7 +191,7 @@ export default function Home() {
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64">
               <div className="flex flex-col gap-3">
-                <h4 className="font-medium text-sm mb-1">Search config.</h4>
+                <h4 className="font-medium text-sm mb-1">Search settings</h4>
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">
