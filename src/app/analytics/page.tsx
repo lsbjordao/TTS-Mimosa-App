@@ -160,23 +160,23 @@ export default function Analytics() {
 
         {/* 🔄 Tabs */}
         <div className="mt-6">
-          <div className="flex gap-4 mb-6">
+          <div className="flex gap-2 mb-6 rounded-xl bg-muted/40 p-1 w-fit">
             <button
               onClick={() => setActiveTab("completeness")}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                 activeTab === "completeness"
                   ? "bg-primary text-white shadow-sm"
-                  : "bg-muted text-foreground hover:bg-muted/70"
+                  : "text-foreground hover:bg-muted"
               }`}
             >
               Field completeness
             </button>
             <button
               onClick={() => setActiveTab("values")}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                 activeTab === "values"
                   ? "bg-primary text-white shadow-sm"
-                  : "bg-muted text-foreground hover:bg-muted/70"
+                  : "text-foreground hover:bg-muted"
               }`}
             >
               Field values
@@ -241,7 +241,12 @@ export default function Analytics() {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredPaths
-                  .filter((p) => p.values && Object.keys(p.values).length > 1)
+                  .filter(
+                    (p) =>
+                      p.values &&
+                      Object.keys(p.values).length > 1 &&
+                      !p.path.endsWith("specificEpithet")
+                  )
                   .slice(0, visibleCount)
                   .map((p, i) => {
                     const data = Object.entries(p.values!).map(([k, v]) => ({
