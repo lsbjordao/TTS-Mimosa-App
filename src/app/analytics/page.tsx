@@ -160,7 +160,7 @@ export default function Analytics() {
 
         {/* 🧭 Tabs com ShadCN */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-          <TabsList className="bg-muted/50 rounded-xl p-1 w-fit mb-8">
+          <TabsList className="bg-muted/50 rounded-xl p-1 w-fit mb-6">
             <TabsTrigger
               value="completeness"
               className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm"
