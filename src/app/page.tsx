@@ -243,10 +243,10 @@ export default function Home() {
             <PopoverContent align="end" className="w-64">
               <div className="flex flex-col gap-3">
                 <h4 className="font-medium text-sm mb-1">Search settings</h4>
+
+                {/* 🔍 Limite de resultados */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-muted-foreground">
-                    Result limit:
-                  </label>
+                  <label className="text-xs text-muted-foreground">Result limit:</label>
                   <select
                     aria-label="Limite de resultados"
                     value={maxResults}
@@ -260,6 +260,39 @@ export default function Home() {
                     <option value={500}>500</option>
                     <option value={1000}>Max</option>
                   </select>
+                </div>
+
+                {/* ✅ Checkboxes de busca */}
+                <div className="flex flex-col gap-1 mt-2">
+                  <label className="text-xs text-muted-foreground">Search in:</label>
+
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={searchOptions.searchKeys}
+                      onChange={(e) =>
+                        setSearchOptions((prev) => ({
+                          ...prev,
+                          searchKeys: e.target.checked,
+                        }))
+                      }
+                    />
+                    Keys
+                  </label>
+
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={searchOptions.searchValues}
+                      onChange={(e) =>
+                        setSearchOptions((prev) => ({
+                          ...prev,
+                          searchValues: e.target.checked,
+                        }))
+                      }
+                    />
+                    Values
+                  </label>
                 </div>
               </div>
             </PopoverContent>
@@ -312,8 +345,8 @@ export default function Home() {
                 <button
                   key={i}
                   className={`w-full text-left px-2 py-1 rounded hover:bg-muted ${selected?.specificEpithet === p.specificEpithet
-                      ? "bg-muted"
-                      : ""
+                    ? "bg-muted"
+                    : ""
                     }`}
                   onClick={() => setSelected(p)}
                 >
