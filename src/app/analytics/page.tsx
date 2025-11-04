@@ -111,8 +111,8 @@ export default function Analytics() {
         values:
           Object.keys(valueCounts).length > 0
             ? Object.fromEntries(
-              Object.entries(valueCounts).sort((a, b) => b[1] - a[1])
-            )
+                Object.entries(valueCounts).sort((a, b) => b[1] - a[1])
+              )
             : undefined,
       });
     }
@@ -127,6 +127,20 @@ export default function Analytics() {
       .reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
   }
 
+  const averageCompleteness =
+    plants.length && pathsStats.length
+      ? (
+          (pathsStats.reduce((acc, p) => acc + p.hasValue / plants.length, 0) /
+            pathsStats.length) *
+          100
+        ).toFixed(1) + "%"
+      : "0%";
+
+  // Ajuste da grid para que o card de Average Completeness some quando a aba não for "completeness"
+  const cardsToShow = activeTab === "completeness" ? 3 : 2;
+  const gridColsClass =
+    cardsToShow === 3 ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-2";
+
   return (
     <div className="w-full h-screen flex flex-col bg-background text-foreground overflow-auto">
       {/* Sticky header */}
@@ -134,34 +148,31 @@ export default function Analytics() {
         <Header searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
       </div>
 
-      <div className="grid grid-cols-3 gap-4 text-center mt-4">
-        <Card className="p-4">
-          <CardHeader className="p-0">
+      {/* Big Number Cards */}
+      <div className={`grid ${gridColsClass} gap-4 text-center mt-4`}>
+        <Card>
+          <CardHeader className="pb-2">
             <CardTitle className="text-3xl font-bold text-primary">{plants.length}</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">Total of taxa</p>
           </CardHeader>
         </Card>
-        <Card className="p-4">
-          <CardHeader className="p-0">
+
+        <Card>
+          <CardHeader className="pb-2">
             <CardTitle className="text-3xl font-bold text-primary">{pathsStats.length}</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">Detected JSON paths</p>
           </CardHeader>
         </Card>
-        <Card className="p-4">
-          <CardHeader className="p-0">
-            <CardTitle className="text-3xl font-bold text-primary">
-              {plants.length
-                ? (
-                  pathsStats.reduce((acc, p) => acc + p.hasValue / plants.length, 0) /
-                  pathsStats.length
-                ).toFixed(2)
-                : 0}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Average Completeness</p>
-          </CardHeader>
-        </Card>
-      </div>
 
+        {activeTab === "completeness" && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-3xl font-bold text-primary">{averageCompleteness}</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Average Completeness</p>
+            </CardHeader>
+          </Card>
+        )}
+      </div>
 
       {/* Tabs */}
       <div className="p-6 space-y-8">
