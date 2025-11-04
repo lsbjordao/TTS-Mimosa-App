@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import Header from "./header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   PieChart,
   Pie,
@@ -12,12 +11,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const COLORS = ["#60A5FA", "#A1A1AA", "#34D399", "#FBBF24", "#F87171", "#A78BFA"];
 
@@ -117,8 +111,8 @@ export default function Analytics() {
         values:
           Object.keys(valueCounts).length > 0
             ? Object.fromEntries(
-              Object.entries(valueCounts).sort((a, b) => b[1] - a[1])
-            )
+                Object.entries(valueCounts).sort((a, b) => b[1] - a[1])
+              )
             : undefined,
       });
     }
@@ -134,33 +128,30 @@ export default function Analytics() {
   }
 
   return (
-    <div className="w-full h-screen flex flex-col bg-background text-foreground">
-      <div className="sticky top-0 z-10 bg-background">
+    <div className="w-full h-screen flex flex-col bg-background text-foreground overflow-auto">
+      {/* Sticky header + cards */}
+      <div className="sticky top-0 z-10 bg-background p-6">
         <Header searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-      </div>
-      <ScrollArea className="flex-1 p-6 space-y-8">
-        {/* 💡 Resumo geral */}
-        <div className="grid grid-cols-3 gap-4 text-center">
+
+        <div className="grid grid-cols-3 gap-4 text-center mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-3xl font-bold text-primary">
-                {plants.length}
-              </CardTitle>
+              <CardTitle className="text-3xl font-bold text-primary">{plants.length}</CardTitle>
               <p className="text-sm text-muted-foreground">Total of taxa</p>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="text-3xl font-bold text-primary">
-                {pathsStats.length}
-              </CardTitle>
+              <CardTitle className="text-3xl font-bold text-primary">{pathsStats.length}</CardTitle>
               <p className="text-sm text-muted-foreground">Detected JSON paths</p>
             </CardHeader>
           </Card>
         </div>
+      </div>
 
-        {/* 🧭 Tabs com ShadCN */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
+      {/* Tabs */}
+      <div className="p-6 space-y-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-muted/50 rounded-xl p-1 w-fit mb-6">
             <TabsTrigger
               value="completeness"
@@ -176,7 +167,7 @@ export default function Analytics() {
             </TabsTrigger>
           </TabsList>
 
-          {/* 🍰 1️⃣ Field completeness */}
+          {/* Field Completeness */}
           <TabsContent value="completeness">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredPaths.slice(0, visibleCount).map((p, i) => {
@@ -185,9 +176,7 @@ export default function Analytics() {
                 return (
                   <Card key={i}>
                     <CardHeader>
-                      <CardTitle className="text-base font-medium truncate">
-                        {p.path}
-                      </CardTitle>
+                      <CardTitle className="text-base font-medium truncate">{p.path}</CardTitle>
                     </CardHeader>
                     <CardContent className="h-[240px] flex justify-center items-center">
                       <ResponsiveContainer width="100%" height="100%">
@@ -208,7 +197,7 @@ export default function Analytics() {
                             <Cell fill={COLORS[1]} />
                           </Pie>
                           <Tooltip />
-                          <Legend wrapperStyle={{ marginTop: 16 }} />
+                          <Legend verticalAlign="bottom" align="center" wrapperStyle={{ marginTop: 16 }} />
                         </PieChart>
                       </ResponsiveContainer>
                     </CardContent>
@@ -227,7 +216,7 @@ export default function Analytics() {
             </div>
           </TabsContent>
 
-          {/* 🍰 2️⃣ Field values */}
+          {/* Field Values */}
           <TabsContent value="values">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredPaths
@@ -246,9 +235,7 @@ export default function Analytics() {
                   return (
                     <Card key={i}>
                       <CardHeader>
-                        <CardTitle className="text-base font-medium truncate">
-                          {p.path}
-                        </CardTitle>
+                        <CardTitle className="text-base font-medium truncate">{p.path}</CardTitle>
                       </CardHeader>
                       <CardContent className="h-[240px] flex justify-center items-center">
                         <ResponsiveContainer width="100%" height="100%">
@@ -267,7 +254,7 @@ export default function Analytics() {
                               ))}
                             </Pie>
                             <Tooltip />
-                            <Legend verticalAlign="bottom" align="center" height={50} />
+                            <Legend verticalAlign="bottom" align="center" wrapperStyle={{ marginTop: 16 }} />
                           </PieChart>
                         </ResponsiveContainer>
                       </CardContent>
@@ -277,7 +264,7 @@ export default function Analytics() {
             </div>
           </TabsContent>
         </Tabs>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
