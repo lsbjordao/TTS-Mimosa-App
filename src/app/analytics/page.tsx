@@ -135,19 +135,33 @@ export default function Analytics() {
       </div>
 
       <div className="grid grid-cols-3 gap-4 text-center mt-4">
-        <Card>
-          <CardHeader>
+        <Card className="p-4">
+          <CardHeader className="p-0">
             <CardTitle className="text-3xl font-bold text-primary">{plants.length}</CardTitle>
-            <p className="text-sm text-muted-foreground">Total of taxa</p>
+            <p className="text-sm text-muted-foreground mt-1">Total of taxa</p>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader>
+        <Card className="p-4">
+          <CardHeader className="p-0">
             <CardTitle className="text-3xl font-bold text-primary">{pathsStats.length}</CardTitle>
-            <p className="text-sm text-muted-foreground">Detected JSON paths</p>
+            <p className="text-sm text-muted-foreground mt-1">Detected JSON paths</p>
+          </CardHeader>
+        </Card>
+        <Card className="p-4">
+          <CardHeader className="p-0">
+            <CardTitle className="text-3xl font-bold text-primary">
+              {plants.length
+                ? (
+                  pathsStats.reduce((acc, p) => acc + p.hasValue / plants.length, 0) /
+                  pathsStats.length
+                ).toFixed(2)
+                : 0}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">Average Completeness</p>
           </CardHeader>
         </Card>
       </div>
+
 
       {/* Tabs */}
       <div className="p-6 space-y-8">
