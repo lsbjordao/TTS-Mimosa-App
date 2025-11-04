@@ -284,7 +284,7 @@ export default function Analytics() {
                               ))}
                             </Pie>
                             <Tooltip />
-                            <Legend verticalAlign="middle" align="right" wrapperStyle={{ marginRight: 16 }} />
+                            <Legend verticalAlign="top" align="center" wrapperStyle={{ marginTop: 16 }} />
                           </PieChart>
                         </ResponsiveContainer>
                       </CardContent>
