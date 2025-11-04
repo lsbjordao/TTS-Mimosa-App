@@ -7,7 +7,13 @@ import { Search, Settings, Github, BookOpenText, FileText, ChartPie } from "luci
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
-export default function Header() {
+export default function Header({
+  searchTerm,
+  setSearchTerm,
+}: {
+  searchTerm: string;
+  setSearchTerm: (v: string) => void;
+}) {
   return (
     <header className="border-b border-border bg-card p-3 flex flex-col gap-2">
       <div className="flex items-center gap-2">
@@ -59,9 +65,10 @@ export default function Header() {
         <div className="ml-auto flex items-center gap-2">
           <Search className="w-5 h-5 text-muted-foreground" />
           <Input
-            disabled
-            placeholder="Search disabled in Analytics"
-            className="w-48"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search JSON paths..."
+            className="w-56"
           />
           <Popover>
             <PopoverTrigger asChild>

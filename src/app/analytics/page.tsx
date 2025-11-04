@@ -1,3 +1,5 @@
+// ./src/app/analytics/page.tsx
+
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
@@ -15,13 +17,14 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const COLORS = ["#60A5FA", "#A1A1AA"]; // verde e vermelho
+const COLORS = ["#60A5FA", "#A1A1AA"];
 
 export default function Analytics() {
   const [plants, setPlants] = useState<any[]>([]);
   const [pathsStats, setPathsStats] = useState<
     { path: string; hasKey: number; hasValue: number; missing: number }[]
   >([]);
+  const [searchTerm, setSearchTerm] = useState(""); // 🔍 termo de busca
   const [visibleCount, setVisibleCount] = useState(30);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -34,7 +37,6 @@ export default function Analytics() {
       });
   }, []);
 
-  // 🔄 Lazy loading compartilhado para ambos os tabs
   useEffect(() => {
     if (!loadMoreRef.current) return;
     const observer = new IntersectionObserver(
@@ -61,7 +63,14 @@ export default function Analytics() {
     return (totalRatio / pathsStats.length) * 100;
   }, [pathsStats, totalTaxa]);
 
-  /** 🔍 Extrai todos os caminhos JSON */
+  /** 🔍 Filtragem dos paths conforme termo digitado */
+  const filteredPaths = useMemo(() => {
+    if (!searchTerm.trim()) return pathsStats;
+    return pathsStats.filter((p) =>
+      p.path.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [pathsStats, searchTerm]);
+
   function extractPaths(obj: any, prefix = "", paths: Set<string>) {
     if (Array.isArray(obj)) {
       obj.forEach((v) => extractPaths(v, `${prefix}[]`, paths));
@@ -74,7 +83,6 @@ export default function Analytics() {
     }
   }
 
-  /** ⚙️ Calcula presença/ausência de valores em cada caminho JSON */
   function analyzePaths(data: any[]) {
     const paths = new Set<string>();
     data.forEach((item) => extractPaths(item, "", paths));
@@ -110,21 +118,17 @@ export default function Analytics() {
     return stats.sort((a, b) => b.hasValue - a.hasValue);
   }
 
-  /** ⚙️ Busca valor por caminho tipo "a.b.c" */
   function getByPath(obj: any, path: string) {
     return path
       .replace(/\[\]/g, "")
       .split(".")
-      .reduce(
-        (acc, key) =>
-          acc && acc[key] !== undefined ? acc[key] : undefined,
-        obj
-      );
+      .reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
   }
 
   return (
     <div className="w-full h-screen flex flex-col bg-background text-foreground">
-      <Header />
+      {/* Header agora recebe o termo e o setter */}
+      <Header searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
 
       <ScrollArea className="flex-1 p-6 space-y-8">
         {/* 💡 Resumo geral */}
@@ -169,7 +173,7 @@ export default function Analytics() {
               value="fields"
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              {pathsStats.slice(0, visibleCount).map((p, i) => {
+              {filteredPaths.slice(0, visibleCount).map((p, i) => {
                 const hasData = p.hasValue;
                 const noData = totalTaxa - hasData;
                 return (
@@ -210,7 +214,7 @@ export default function Analytics() {
               value="overview"
               className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
             >
-              {pathsStats.slice(0, visibleCount).map((p, i) => {
+              {filteredPaths.slice(0, visibleCount).map((p, i) => {
                 const percent = (p.hasValue / totalTaxa) * 100;
                 return (
                   <Card key={i}>
@@ -234,12 +238,11 @@ export default function Analytics() {
           </Tabs>
         </div>
 
-        {/* ⏳ Loader comum aos dois tabs */}
         <div
           ref={loadMoreRef}
           className="col-span-full h-12 flex justify-center items-center text-muted-foreground"
         >
-          {visibleCount < pathsStats.length
+          {visibleCount < filteredPaths.length
             ? "Carregando mais..."
             : "Todos os campos carregados ✅"}
         </div>

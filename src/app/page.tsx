@@ -179,12 +179,18 @@ export default function Home() {
       {/* 🔍 Cabeçalho */}
       <header className="border-b border-border bg-card p-3 flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <Link
-            href="/"
+          <b
+            onClick={() => {
+              setSelected(null);
+              setModalIndex(null);
+              setSearchTerm("");
+              setSearchResults([]);
+            }}
             className="cursor-pointer transition duration-300 hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+            title="Reload home view"
           >
             TTS-Mimosa
-          </Link>
+          </b>
           <a
             href="https://doi.org/10.1093/biomethods/bpae017"
             target="_blank"
