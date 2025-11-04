@@ -15,7 +15,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const COLORS = ["#10b981", "#ef4444"]; // verde e vermelho
+const COLORS = ["#60A5FA", "#A1A1AA"]; // verde e vermelho
 
 export default function Analytics() {
   const [plants, setPlants] = useState<any[]>([]);
