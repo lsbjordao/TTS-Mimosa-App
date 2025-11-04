@@ -10,6 +10,7 @@ import {
   Github,
   BookOpenText,
   FileText,
+  ChartPie
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+import Link from "next/link";
 
 const JSONGrid = dynamic(() => import("@redheadphone/react-json-grid"), {
   ssr: false,
@@ -210,6 +212,14 @@ export default function Home() {
             <BookOpenText className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
           </a>
 
+          <Link
+            href="/analytics"
+            className="flex items-center justify-center hover:text-primary transition-colors"
+            title="Analytics"
+          >
+            <ChartPie className="w-5 h-5 text-muted-foreground" />
+          </Link>
+
           <Search className="w-5 h-5 text-muted-foreground" />
           <Input
             type="text"
@@ -299,11 +309,10 @@ export default function Home() {
               {plants.map((p, i) => (
                 <button
                   key={i}
-                  className={`w-full text-left px-2 py-1 rounded hover:bg-muted ${
-                    selected?.specificEpithet === p.specificEpithet
+                  className={`w-full text-left px-2 py-1 rounded hover:bg-muted ${selected?.specificEpithet === p.specificEpithet
                       ? "bg-muted"
                       : ""
-                  }`}
+                    }`}
                   onClick={() => setSelected(p)}
                 >
                   <i>Mimosa {p.specificEpithet || "sp."}</i>

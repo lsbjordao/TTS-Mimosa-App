@@ -11,6 +11,7 @@
     "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tabs": "^1.1.13",
     "@redheadphone/react-json-grid": "^0.9.4",
     "@shadcn/ui": "^0.0.4",
     "class-variance-authority": "^0.7.1",
@@ -19,6 +20,7 @@
     "next": "16.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "recharts": "^3.3.0",
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
