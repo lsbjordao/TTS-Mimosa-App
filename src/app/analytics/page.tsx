@@ -130,7 +130,7 @@ export default function Analytics() {
   return (
     <div className="w-full h-screen flex flex-col bg-background text-foreground overflow-auto">
       {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-background p-6">
+      <div className="sticky top-0 z-10 bg-background">
         <Header searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
       </div>
 
