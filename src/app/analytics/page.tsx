@@ -101,7 +101,7 @@ export default function Analytics() {
     <div className="w-full h-screen flex flex-col bg-background text-foreground">
       <Header />
 
-      <ScrollArea className="flex-1 p-6 space-y-6">
+      <ScrollArea className="flex-1 p-6 space-y-8">
         {/* 💡 Resumo geral */}
         <div className="grid grid-cols-3 gap-4 text-center">
           <Card>
@@ -132,70 +132,73 @@ export default function Analytics() {
           </Card>
         </div>
 
-        <Tabs defaultValue="fields" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="fields">Field completeness</TabsTrigger>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-          </TabsList>
+        {/* Espaço maior entre resumo e tabs */}
+        <div className="mt-6">
+          <Tabs defaultValue="fields" className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="fields">Field completeness</TabsTrigger>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+            </TabsList>
 
-          {/* 🍰 Gráficos de pizza para campos */}
-          <TabsContent value="fields" className="space-y-6">
-            {topFilled.map((p, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <CardTitle className="text-base font-medium">{p.path}</CardTitle>
-                </CardHeader>
-                <CardContent className="h-[240px] flex justify-center items-center">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: "Has value", value: p.has },
-                          { name: "Missing", value: p.missing },
-                        ]}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        label
-                      >
-                        <Cell fill={COLORS[2]} />
-                        <Cell fill={COLORS[4]} />
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            ))}
-          </TabsContent>
-
-          {/* 📊 Overview com barras de completude */}
-          <TabsContent value="overview" className="space-y-4">
-            {pathsStats.slice(0, 50).map((p, i) => {
-              const percent = (p.has / totalTaxa) * 100;
-              return (
+            {/* 🍰 Campos em 3 colunas */}
+            <TabsContent value="fields" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {topFilled.map((p, i) => (
                 <Card key={i}>
                   <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <CardTitle className="text-sm font-medium truncate">
-                        {p.path}
-                      </CardTitle>
-                      <span className="text-sm text-muted-foreground">
-                        {percent.toFixed(1)}%
-                      </span>
-                    </div>
+                    <CardTitle className="text-base font-medium">{p.path}</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <Progress value={percent} className="h-2" />
+                  <CardContent className="h-[240px] flex justify-center items-center">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Has value", value: p.has },
+                            { name: "Missing", value: p.missing },
+                          ]}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          label
+                        >
+                          <Cell fill={COLORS[2]} />
+                          <Cell fill={COLORS[4]} />
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </CardContent>
                 </Card>
-              );
-            })}
-          </TabsContent>
-        </Tabs>
+              ))}
+            </TabsContent>
+
+            {/* 📊 Overview com barras */}
+            <TabsContent value="overview" className="space-y-4">
+              {pathsStats.slice(0, 50).map((p, i) => {
+                const percent = (p.has / totalTaxa) * 100;
+                return (
+                  <Card key={i}>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="text-sm font-medium truncate">
+                          {p.path}
+                        </CardTitle>
+                        <span className="text-sm text-muted-foreground">
+                          {percent.toFixed(1)}%
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <Progress value={percent} className="h-2" />
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </TabsContent>
+          </Tabs>
+        </div>
       </ScrollArea>
     </div>
   );
