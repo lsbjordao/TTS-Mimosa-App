@@ -215,10 +215,11 @@ export default function Home() {
 
           <Link
             href="/analytics"
-            className="flex items-center justify-center hover:text-primary transition-colors"
+            rel="noopener noreferrer"
+            className="flex items-center"
             title="Analytics"
           >
-            <ChartPie className="w-5 h-5 text-muted-foreground" />
+            <ChartPie className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
           </Link>
 
           <Search className="w-5 h-5 text-muted-foreground" />
