@@ -15,14 +15,14 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const COLORS = ["#22d3ee", "#10b981", "#f59e0b", "#ef4444", "#6366f1"];
+const COLORS = ["#10b981", "#ef4444"]; // verde e vermelho
 
 export default function Analytics() {
   const [plants, setPlants] = useState<any[]>([]);
   const [pathsStats, setPathsStats] = useState<
     { path: string; hasKey: number; hasValue: number; missing: number }[]
   >([]);
-  const [visibleCount, setVisibleCount] = useState(30); // 👈 inicializa 30 itens
+  const [visibleCount, setVisibleCount] = useState(30);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -34,19 +34,17 @@ export default function Analytics() {
       });
   }, []);
 
-  // 👁️ observer para carregar mais ao rolar
+  // 🔄 Lazy loading compartilhado para ambos os tabs
   useEffect(() => {
     if (!loadMoreRef.current) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
           setVisibleCount((prev) => Math.min(prev + 30, pathsStats.length));
         }
       },
-      { rootMargin: "100px" }
+      { rootMargin: "200px" }
     );
-
     observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
   }, [pathsStats]);
@@ -63,6 +61,7 @@ export default function Analytics() {
     return (totalRatio / pathsStats.length) * 100;
   }, [pathsStats, totalTaxa]);
 
+  /** 🔍 Extrai todos os caminhos JSON */
   function extractPaths(obj: any, prefix = "", paths: Set<string>) {
     if (Array.isArray(obj)) {
       obj.forEach((v) => extractPaths(v, `${prefix}[]`, paths));
@@ -75,6 +74,7 @@ export default function Analytics() {
     }
   }
 
+  /** ⚙️ Calcula presença/ausência de valores em cada caminho JSON */
   function analyzePaths(data: any[]) {
     const paths = new Set<string>();
     data.forEach((item) => extractPaths(item, "", paths));
@@ -110,6 +110,7 @@ export default function Analytics() {
     return stats.sort((a, b) => b.hasValue - a.hasValue);
   }
 
+  /** ⚙️ Busca valor por caminho tipo "a.b.c" */
   function getByPath(obj: any, path: string) {
     return path
       .replace(/\[\]/g, "")
@@ -163,49 +164,48 @@ export default function Analytics() {
               <TabsTrigger value="overview">Overview</TabsTrigger>
             </TabsList>
 
-            {/* 🍰 Campos (3 colunas) */}
+            {/* 🍰 Campos simplificados (Has data / No data) */}
             <TabsContent
               value="fields"
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              {pathsStats.slice(0, visibleCount).map((p, i) => (
-                <Card key={i}>
-                  <CardHeader>
-                    <CardTitle className="text-base font-medium">{p.path}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-[240px] flex justify-center items-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={[
-                            { name: "Has key", value: p.hasKey },
-                            { name: "Has value", value: p.hasValue },
-                            { name: "Missing", value: p.missing },
-                          ]}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          label
-                        >
-                          <Cell fill={COLORS[0]} />
-                          <Cell fill={COLORS[1]} />
-                          <Cell fill={COLORS[4]} />
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              ))}
-              <div ref={loadMoreRef} className="col-span-full h-10 flex justify-center items-center text-muted-foreground">
-                {visibleCount < pathsStats.length ? "Carregando mais..." : "Todos os campos carregados ✅"}
-              </div>
+              {pathsStats.slice(0, visibleCount).map((p, i) => {
+                const hasData = p.hasValue;
+                const noData = totalTaxa - hasData;
+                return (
+                  <Card key={i}>
+                    <CardHeader>
+                      <CardTitle className="text-base font-medium">{p.path}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-[240px] flex justify-center items-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: "Has data", value: hasData },
+                              { name: "No data", value: noData },
+                            ]}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            label
+                          >
+                            <Cell fill={COLORS[0]} />
+                            <Cell fill={COLORS[1]} />
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </TabsContent>
 
-            {/* 📊 Overview em 4 colunas */}
+            {/* 📊 Overview com lazy loading funcional */}
             <TabsContent
               value="overview"
               className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
@@ -230,11 +230,18 @@ export default function Analytics() {
                   </Card>
                 );
               })}
-              <div ref={loadMoreRef} className="col-span-full h-10 flex justify-center items-center text-muted-foreground">
-                {visibleCount < pathsStats.length ? "Carregando mais..." : "Todos os campos carregados ✅"}
-              </div>
             </TabsContent>
           </Tabs>
+        </div>
+
+        {/* ⏳ Loader comum aos dois tabs */}
+        <div
+          ref={loadMoreRef}
+          className="col-span-full h-12 flex justify-center items-center text-muted-foreground"
+        >
+          {visibleCount < pathsStats.length
+            ? "Carregando mais..."
+            : "Todos os campos carregados ✅"}
         </div>
       </ScrollArea>
     </div>
