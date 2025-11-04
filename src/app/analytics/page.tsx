@@ -111,8 +111,8 @@ export default function Analytics() {
         values:
           Object.keys(valueCounts).length > 0
             ? Object.fromEntries(
-                Object.entries(valueCounts).sort((a, b) => b[1] - a[1])
-              )
+              Object.entries(valueCounts).sort((a, b) => b[1] - a[1])
+            )
             : undefined,
       });
     }
@@ -129,24 +129,24 @@ export default function Analytics() {
 
   return (
     <div className="w-full h-screen flex flex-col bg-background text-foreground overflow-auto">
-      {/* Sticky header + cards */}
+      {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-background p-6">
         <Header searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+      </div>
 
-        <div className="grid grid-cols-3 gap-4 text-center mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-3xl font-bold text-primary">{plants.length}</CardTitle>
-              <p className="text-sm text-muted-foreground">Total of taxa</p>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-3xl font-bold text-primary">{pathsStats.length}</CardTitle>
-              <p className="text-sm text-muted-foreground">Detected JSON paths</p>
-            </CardHeader>
-          </Card>
-        </div>
+      <div className="grid grid-cols-3 gap-4 text-center mt-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-3xl font-bold text-primary">{plants.length}</CardTitle>
+            <p className="text-sm text-muted-foreground">Total of taxa</p>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-3xl font-bold text-primary">{pathsStats.length}</CardTitle>
+            <p className="text-sm text-muted-foreground">Detected JSON paths</p>
+          </CardHeader>
+        </Card>
       </div>
 
       {/* Tabs */}
