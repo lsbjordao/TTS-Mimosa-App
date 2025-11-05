@@ -1,3 +1,5 @@
+// ./src/app/filter/page.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -49,26 +51,58 @@ export default function FilterPage() {
       );
   }
 
-  function extractStringPaths(data: any[]) {
+  function extractStringPaths(data: any[]): { path: string; options: string[] }[] {
     const paths: Record<string, Set<string>> = {};
-    function recurse(obj: any, prefix = "") {
-      if (Array.isArray(obj)) obj.forEach((v) => recurse(v, prefix));
-      else if (obj && typeof obj === "object") {
+    
+    function traverse(obj: any, currentPath: string = "", depth: number = 0) {
+      // Limitar profundidade para evitar recursão infinita
+      if (depth > 10) return;
+      
+      if (obj === null || obj === undefined) return;
+
+      if (typeof obj === 'object') {
         for (const [key, value] of Object.entries(obj)) {
-          const newPath = prefix ? `${prefix}.${key}` : key;
-          if (typeof value === "string" && value.trim() !== "") {
-            if (!paths[newPath]) paths[newPath] = new Set();
-            paths[newPath].add(value);
-          } else recurse(value, newPath);
+          const newPath = currentPath ? `${currentPath}.${key}` : key;
+          
+          if (value !== null && value !== undefined) {
+            if (typeof value === 'string' && value.trim() !== '') {
+              if (!paths[newPath]) paths[newPath] = new Set();
+              paths[newPath].add(value);
+            } else if (typeof value === 'number' || typeof value === 'boolean') {
+              if (!paths[newPath]) paths[newPath] = new Set();
+              paths[newPath].add(value.toString());
+            } else if (Array.isArray(value)) {
+              // Para arrays, adiciona o caminho e processa alguns itens (não todos)
+              if (!paths[newPath]) paths[newPath] = new Set();
+              paths[newPath].add(`[array:${value.length}]`);
+              
+              // Processa apenas os primeiros 5 itens para evitar explosão de memória
+              value.slice(0, 5).forEach((item, index) => {
+                traverse(item, `${newPath}[${index}]`, depth + 1);
+              });
+            } else if (typeof value === 'object') {
+              if (!paths[newPath]) paths[newPath] = new Set();
+              paths[newPath].add('[object]');
+              traverse(value, newPath, depth + 1);
+            }
+          }
         }
       }
     }
-    data.forEach((item) => recurse(item));
+
+    // Processa apenas os primeiros 10 itens para evitar sobrecarga
+    const sampleData = data.slice(0, 10);
+    sampleData.forEach((item) => {
+      traverse(item);
+    });
+
+    // Converte para array e filtra caminhos muito longos
     return Object.entries(paths)
       .map(([path, set]) => ({
         path,
-        options: Array.from(set).sort(),
+        options: Array.from(set).sort().slice(0, 100), // Limita opções por caminho
       }))
+      .filter(item => item.path.length < 100) // Filtra caminhos muito longos
       .sort((a, b) => a.path.localeCompare(b.path));
   }
 
@@ -95,8 +129,14 @@ export default function FilterPage() {
       .then((res) => res.json())
       .then((data) => {
         setPlants(data);
-        setStringPaths(extractStringPaths(data));
+        const extractedPaths = extractStringPaths(data);
+        setStringPaths(extractedPaths);
+        console.log("Total paths extracted:", extractedPaths.length);
+        console.log("Sample paths:", extractedPaths.slice(0, 10));
         setFilteredPlants(data);
+      })
+      .catch((error) => {
+        console.error("Error loading data:", error);
       });
   }, []);
 
@@ -271,10 +311,10 @@ export default function FilterPage() {
                             value={f.path}
                             onValueChange={(value) => handlePropertyInputChange(i, value)}
                           />
-                          <CommandList className="max-h-[120px]">
+                          <CommandList className="max-h-[200px] overflow-auto">
                             <CommandEmpty>No matching fields.</CommandEmpty>
                             <CommandGroup>
-                              {filteredStringPaths.slice(0, 10).map((sp) => (
+                              {filteredStringPaths.map((sp) => (
                                 <CommandItem
                                   key={sp.path}
                                   className="text-xs py-1"
@@ -309,7 +349,7 @@ export default function FilterPage() {
                             {f.path || "Select property..."}
                           </SelectValue>
                         </SelectTrigger>
-                        <SelectContent className="max-h-[200px] overflow-auto">
+                        <SelectContent className="max-h-[300px] overflow-auto">
                           <div className="p-1">
                             <Command>
                               <CommandInput 
@@ -317,7 +357,7 @@ export default function FilterPage() {
                                 className="h-9"
                                 onValueChange={(value) => setPropertySearch(value)}
                               />
-                              <CommandList className="max-h-[160px]">
+                              <CommandList className="max-h-[240px]">
                                 <CommandEmpty>No matching fields.</CommandEmpty>
                                 <CommandGroup>
                                   {stringPaths
