@@ -30,11 +30,17 @@ interface Filter {
   enabled: boolean;
 }
 
+interface PathData {
+  allPaths: string[]; // Para modo "property" - todas as chaves
+  valuePaths: { path: string; options: string[] }[]; // Para modo "property_value" - só com valores
+}
+
 export default function FilterPage() {
   const [plants, setPlants] = useState<any[]>([]);
-  const [stringPaths, setStringPaths] = useState<
-    { path: string; options: string[] }[]
-  >([]);
+  const [pathData, setPathData] = useState<PathData>({
+    allPaths: [],
+    valuePaths: []
+  });
   const [filters, setFilters] = useState<Filter[]>([]);
   const [filteredPlants, setFilteredPlants] = useState<any[]>([]);
   const [propertySearch, setPropertySearch] = useState<string>("");
@@ -50,73 +56,48 @@ export default function FilterPage() {
       );
   }
 
-  function extractStringPaths(data: any[]): { path: string; options: string[] }[] {
-    const paths: Record<string, Set<string>> = {};
-
-    function traverse(obj: any, currentPath: string = "") {
+  function extractPathsByMode(data: any[]): PathData {
+    const allPathsSet = new Set<string>();
+    const valuePaths: Record<string, Set<string>> = {};
+    
+    function traverse(obj: any, currentPath: string = ""): void {
       if (obj === null || obj === undefined) return;
 
-      // Adiciona o path atual (mesmo para objetos)
-      if (currentPath && !currentPath.endsWith('[]')) {
-        if (!paths[currentPath]) paths[currentPath] = new Set();
-        // Para objetos, adiciona um marcador indicando que existe
-        if (typeof obj === 'object' && !Array.isArray(obj)) {
-          paths[currentPath].add('[OBJECT]');
-        }
-      }
+      if (typeof obj === 'object' && !Array.isArray(obj)) {
+        for (const [key, value] of Object.entries(obj)) {
+          const newPath = currentPath ? `${currentPath}.${key}` : key;
+          
+          // Para modo "property": adiciona TODAS as chaves
+          allPathsSet.add(newPath);
 
-      if (typeof obj === 'object') {
-        // Para arrays
-        if (Array.isArray(obj)) {
-          const arrayPath = currentPath ? `${currentPath}[]` : '[]';
-          if (!paths[arrayPath]) paths[arrayPath] = new Set();
-          paths[arrayPath].add('[ARRAY]');
-
-          // Processa cada elemento do array
-          obj.forEach((item, index) => {
-            const elementPath = currentPath ? `${currentPath}[${index}]` : `[${index}]`;
-            traverse(item, elementPath);
-            // Também processa como array genérico
-            traverse(item, arrayPath);
-          });
-        }
-        // Para objetos
-        else {
-          for (const [key, value] of Object.entries(obj)) {
-            const newPath = currentPath ? `${currentPath}.${key}` : key;
-
-            if (value !== null && value !== undefined) {
-              // Para valores primitivos
-              if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-                if (typeof value === 'string' && value.trim() === '') continue;
-
-                if (!paths[newPath]) paths[newPath] = new Set();
-                paths[newPath].add(value.toString());
+          if (value !== null && value !== undefined) {
+            // Para modo "property_value": só primitivos e arrays de primitivos
+            const isPrimitive = typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+            const isPrimitiveArray = Array.isArray(value) && value.length > 0 && 
+              value.some(item => typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean');
+            
+            if (isPrimitive) {
+              if (!valuePaths[newPath]) valuePaths[newPath] = new Set();
+              if (typeof value === 'string' && value.trim() !== '') {
+                valuePaths[newPath].add(value.toString());
+              } else if (typeof value !== 'string') {
+                valuePaths[newPath].add(value.toString());
               }
-              // Para arrays aninhados
-              else if (Array.isArray(value)) {
-                // Adiciona path do array
-                const nestedArrayPath = newPath + '[]';
-                if (!paths[nestedArrayPath]) paths[nestedArrayPath] = new Set();
-                paths[nestedArrayPath].add('[ARRAY]');
-
-                // Processa valores primitivos dentro do array
-                value.forEach(item => {
-                  if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
-                    if (typeof item === 'string' && item.trim() === '') return;
-                    paths[nestedArrayPath].add(item.toString());
-                  }
-                });
-
-                // Continua travessia para objetos dentro do array
-                value.forEach((item, index) => {
-                  traverse(item, `${newPath}[${index}]`);
-                });
-              }
-              // Para objetos aninhados - SEMPRE continua a travessia
-              else if (typeof value === 'object') {
-                traverse(value, newPath);
-              }
+            } 
+            else if (isPrimitiveArray) {
+              if (!valuePaths[newPath]) valuePaths[newPath] = new Set();
+              value.forEach(item => {
+                if (typeof item === 'string' && item.trim() !== '') {
+                  valuePaths[newPath].add(item.toString());
+                } else if (typeof item === 'number' || typeof item === 'boolean') {
+                  valuePaths[newPath].add(item.toString());
+                }
+              });
+            }
+            
+            // Continua travessia para objetos aninhados
+            if (typeof value === 'object') {
+              traverse(value, newPath);
             }
           }
         }
@@ -128,34 +109,30 @@ export default function FilterPage() {
       traverse(item);
     });
 
-    // Função para limpar e formatar os resultados
-    const result = Object.entries(paths)
-      .map(([path, set]) => {
-        // Filtra opções, removendo marcadores e valores vazios
-        const options = Array.from(set)
-          .filter(opt => opt && opt.trim() !== '' && opt !== '[OBJECT]' && opt !== '[ARRAY]')
-          .sort();
+    // Prepara resultados
+    const allPaths = Array.from(allPathsSet)
+      .filter(path => path && path.trim() !== '' && !path.includes('[') && !path.includes(']'))
+      .sort();
 
-        // Inclui o path mesmo se só tiver marcadores (para property mode)
-        return {
-          path,
-          options
-        };
-      })
-      .filter(item => item.path && item.path.trim() !== '') // Remove paths vazios
+    const valuePathsResult = Object.entries(valuePaths)
+      .map(([path, set]) => ({
+        path,
+        options: Array.from(set)
+          .filter(opt => opt && opt.trim() !== '')
+          .sort()
+      }))
+      .filter(item => item.options.length > 0)
       .sort((a, b) => a.path.localeCompare(b.path));
 
-    console.log("All extracted paths:", result);
-    console.log("Total paths:", result.length);
+    console.log("All paths for Property mode:", allPaths.length);
+    console.log("Value paths for Property+Value mode:", valuePathsResult.length);
+    console.log("Sample all paths:", allPaths.slice(0, 10));
+    console.log("Sample value paths:", valuePathsResult.slice(0, 10));
 
-    // Debug: log de paths específicos que podem estar faltando
-    const specificPaths = ['flower.merism', 'flower.merism[]', 'habitat', 'habitat.type'];
-    specificPaths.forEach(specificPath => {
-      const found = result.find(p => p.path === specificPath);
-      console.log(`Path "${specificPath}":`, found ? `FOUND with ${found.options.length} options` : 'NOT FOUND');
-    });
-
-    return result;
+    return {
+      allPaths,
+      valuePaths: valuePathsResult
+    };
   }
 
   function extractImagesWithPaths(obj: any, path: string[] = []) {
@@ -181,14 +158,10 @@ export default function FilterPage() {
       .then((res) => res.json())
       .then((data) => {
         setPlants(data);
-        const extractedPaths = extractStringPaths(data);
-        setStringPaths(extractedPaths);
-        console.log("Total paths extracted:", extractedPaths.length);
-
-        // Debug: verificar se flower.merism existe e quais valores tem
-        const flowerMerism = extractedPaths.find(p => p.path === "flower.merism");
-        console.log("flower.merism values:", flowerMerism?.options);
-
+        const extractedPaths = extractPathsByMode(data);
+        setPathData(extractedPaths);
+        console.log("Total paths for Property mode:", extractedPaths.allPaths.length);
+        console.log("Total paths for Property+Value mode:", extractedPaths.valuePaths.length);
         setFilteredPlants(data);
       })
       .catch((error) => {
@@ -261,11 +234,15 @@ export default function FilterPage() {
     const newFilters = [...filters];
     newFilters[index].path = value;
     setFilters(newFilters);
-    // Fecha o dropdown após seleção
     setOpenPropertySearch(null);
   };
 
-  const filteredStringPaths = stringPaths.filter((sp) =>
+  // Filtros para cada modo
+  const filteredAllPaths = pathData.allPaths.filter((path) =>
+    path.toLowerCase().includes(propertySearch.toLowerCase())
+  );
+
+  const filteredValuePaths = pathData.valuePaths.filter((sp) =>
     sp.path.toLowerCase().includes(propertySearch.toLowerCase())
   );
 
@@ -298,14 +275,15 @@ export default function FilterPage() {
 
           <div className="space-y-4">
             {filters.map((f, i) => {
-              const selectedPath = stringPaths.find((sp) => sp.path === f.path);
-              const valueOptions = selectedPath?.options || [];
+              const selectedValuePath = pathData.valuePaths.find((sp) => sp.path === f.path);
+              const valueOptions = selectedValuePath?.options || [];
 
               return (
                 <div
                   key={i}
-                  className={`border border-border p-3 rounded-lg space-y-2 ${f.enabled ? "bg-card" : "bg-muted/30 opacity-70"
-                    }`}
+                  className={`border border-border p-3 rounded-lg space-y-2 ${
+                    f.enabled ? "bg-card" : "bg-muted/30 opacity-70"
+                  }`}
                 >
                   {/* Cabeçalho com controles */}
                   <div className="flex items-center justify-between gap-2">
@@ -363,11 +341,10 @@ export default function FilterPage() {
                     <div className="flex flex-col gap-2">
                       <p className="text-xs text-muted-foreground">Search property path</p>
 
-                      {/* Selector com busca para Property - CORRIGIDO */}
                       <Select
                         open={openPropertySearch === i}
                         onOpenChange={(open: any) => setOpenPropertySearch(open ? i : null)}
-                        value={f.path} // Agora usa o value corretamente
+                        value={f.path}
                         onValueChange={(value: any) => handlePropertyInputChange(i, value)}
                       >
                         <SelectTrigger className="w-full text-sm">
@@ -390,22 +367,18 @@ export default function FilterPage() {
                               <CommandList className="max-h-[240px]">
                                 <CommandEmpty>No matching fields.</CommandEmpty>
                                 <CommandGroup>
-                                  {stringPaths
-                                    .filter((sp) =>
-                                      sp.path.toLowerCase().includes(propertySearch.toLowerCase())
-                                    )
-                                    .map((sp) => (
-                                      <CommandItem
-                                        key={sp.path}
-                                        value={sp.path}
-                                        onSelect={(currentValue: any) => {
-                                          handlePropertyInputChange(i, currentValue);
-                                        }}
-                                        className="text-xs py-1"
-                                      >
-                                        {sp.path}
-                                      </CommandItem>
-                                    ))}
+                                  {filteredAllPaths.map((path) => (
+                                    <CommandItem
+                                      key={path}
+                                      value={path}
+                                      onSelect={(currentValue: any) => {
+                                        handlePropertyInputChange(i, currentValue);
+                                      }}
+                                      className="text-xs py-1"
+                                    >
+                                      {path}
+                                    </CommandItem>
+                                  ))}
                                 </CommandGroup>
                               </CommandList>
                             </Command>
@@ -447,24 +420,20 @@ export default function FilterPage() {
                               <CommandList className="max-h-[240px]">
                                 <CommandEmpty>No matching fields.</CommandEmpty>
                                 <CommandGroup>
-                                  {stringPaths
-                                    .filter((sp) =>
-                                      sp.path.toLowerCase().includes(propertySearch.toLowerCase())
-                                    )
-                                    .map((sp) => (
-                                      <CommandItem
-                                        key={sp.path}
-                                        value={sp.path}
-                                        onSelect={(currentValue: any) => {
-                                          updateFilter(i, "path", currentValue);
-                                          setOpenPropertySelect(null);
-                                          setPropertySearch("");
-                                        }}
-                                        className="text-xs py-1"
-                                      >
-                                        {sp.path}
-                                      </CommandItem>
-                                    ))}
+                                  {filteredValuePaths.map((sp) => (
+                                    <CommandItem
+                                      key={sp.path}
+                                      value={sp.path}
+                                      onSelect={(currentValue: any) => {
+                                        updateFilter(i, "path", currentValue);
+                                        setOpenPropertySelect(null);
+                                        setPropertySearch("");
+                                      }}
+                                      className="text-xs py-1"
+                                    >
+                                      {sp.path}
+                                    </CommandItem>
+                                  ))}
                                 </CommandGroup>
                               </CommandList>
                             </Command>
