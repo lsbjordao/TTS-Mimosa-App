@@ -103,22 +103,26 @@ export default function FilterPage() {
       setFilteredPlants(plants);
       return;
     }
+
     const filtered = plants.filter((p) =>
       filters.every((f) => {
         if (f.mode === "property_value") {
           return getByPath(p, f.path) === f.value;
-        } else {
-          return Object.keys(p)
-            .join(".")
-            .includes(f.path.split(".").slice(-1)[0]); // busca simples
+        } else if (f.mode === "property") {
+          // busca por nome de propriedade
+          const lower = f.path.toLowerCase();
+          return stringPaths.some((sp) =>
+            sp.path.toLowerCase().includes(lower)
+          );
         }
+        return true;
       })
     );
     setFilteredPlants(filtered);
   }, [filters, plants]);
 
   const addFilter = () => {
-    setFilters([...filters, { mode: "property_value", path: "", value: "" }]);
+    setFilters([...filters, { mode: "property", path: "", value: "" }]);
   };
 
   const removeFilter = (index: number) => {
@@ -146,8 +150,8 @@ export default function FilterPage() {
         <Header />
       </div>
 
-      <div className="grid grid-cols-[300px_1fr_300px] flex-1 min-h-0">
-        {/* esquerda */}
+      <div className="grid grid-cols-[280px_1fr_280px] flex-1 min-h-0">
+        {/* Lista esquerda */}
         <ScrollArea className="border-r border-border flex-1 overflow-auto p-4 dark-scrollbar">
           <Card>
             <CardHeader>
@@ -163,68 +167,89 @@ export default function FilterPage() {
           </Card>
         </ScrollArea>
 
-        {/* centro */}
+        {/* Centro */}
         <main className="p-6 overflow-auto dark-scrollbar space-y-4">
           <h2 className="text-lg font-semibold">Filtering</h2>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {filters.map((f, i) => {
               const selectedPath = stringPaths.find((sp) => sp.path === f.path);
               const valueOptions = selectedPath?.options || [];
 
               return (
-                <div key={i} className="flex items-center gap-2">
-                  {/* seletor de modo */}
-                  <Select
-                    value={f.mode}
-                    onValueChange={(v) =>
-                      updateFilter(i, "mode", v as "property" | "property_value")
-                    }
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="property">Property</SelectItem>
-                      <SelectItem value="property_value">
-                        Property + Value
-                      </SelectItem>
+                <div
+                  key={i}
+                  className="border border-border p-3 rounded-lg bg-card space-y-2"
+                >
+                  {/* Tipo */}
+                  <div className="flex items-center justify-between gap-2">
+                    <Select
+                      value={f.mode}
+                      onValueChange={(v) =>
+                        updateFilter(
+                          i,
+                          "mode",
+                          v as "property" | "property_value"
+                        )
+                      }
+                   
+                    >
+                      <SelectTrigger className="w-[180px] text-sm">
+                        <SelectValue placeholder="Select type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="property">Property</SelectItem>
+                        <SelectItem value="property_value">
+                          Property + Value
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
 
-                    </SelectContent>
-                  </Select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeFilter(i)}
+                      title="Remove filter"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
 
-                  {/* property: Command com busca */}
-                  {f.mode === "property" && (
-                    <div className="w-full flex-1 border rounded-md">
-                      <Command>
-                        <CommandInput placeholder="Search property..." />
-                        <CommandList>
-                          <CommandEmpty>No results found.</CommandEmpty>
-                          <CommandGroup>
-                            {stringPaths.map((sp) => (
-                              <CommandItem
-                                key={sp.path}
-                                onSelect={() =>
-                                  updateFilter(i, "path", sp.path)
-                                }
-                              >
-                                {sp.path}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </div>
-                  )}
-
-                  {/* property_value: Command + Select */}
-                  {f.mode === "property_value" && (
-                    <>
-                      <div className="w-full flex-1 border rounded-md">
+                  {/* Campo de filtragem dependendo do modo */}
+                  {f.mode === "property" ? (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs text-muted-foreground">Search property</p>
+                      <div className="border rounded-md">
                         <Command>
-                          <CommandInput placeholder="Search field..." />
+                          <CommandInput placeholder="Search field name..." />
                           <CommandList>
-                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandEmpty>No matching fields.</CommandEmpty>
+                            <CommandGroup>
+                              {stringPaths.map((sp) => (
+                                <CommandItem
+                                  key={sp.path}
+                                  onSelect={() =>
+                                    updateFilter(i, "path", sp.path)
+                                  }
+                                >
+                                  {sp.path}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs text-muted-foreground">Search property and value</p>
+
+                      {/* seletor de campo */}
+                      <div className="border rounded-md">
+                        <Command>
+                          <CommandInput placeholder="Search field name..." />
+                          <CommandList>
+                            <CommandEmpty>No matching fields.</CommandEmpty>
                             <CommandGroup>
                               {stringPaths.map((sp) => (
                                 <CommandItem
@@ -241,35 +266,28 @@ export default function FilterPage() {
                         </Command>
                       </div>
 
-                      <Select
-                        onValueChange={(value) =>
-                          updateFilter(i, "value", value)
-                        }
-                        value={f.value}
-                        disabled={!f.path}
-                      >
-                        <SelectTrigger className="w-full flex-1">
-                          <SelectValue placeholder="Select value..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {valueOptions.map((v) => (
-                            <SelectItem key={v} value={v}>
-                              {v}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </>
+                      {/* seletor de valores */}
+                      {f.path && (
+                        <Select
+                          onValueChange={(value) =>
+                            updateFilter(i, "value", value)
+                          }
+                          value={f.value}
+                        >
+                          <SelectTrigger className="w-full text-sm">
+                            <SelectValue placeholder="Select value..." />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[200px] overflow-auto">
+                            {valueOptions.map((v) => (
+                              <SelectItem key={v} value={v}>
+                                {v}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                   )}
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeFilter(i)}
-                    title="Remove filter"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
                 </div>
               );
             })}
@@ -280,19 +298,19 @@ export default function FilterPage() {
             onClick={addFilter}
             className="flex items-center gap-1 mt-2"
           >
-            <Plus className="w-4 h-4" /> Add filter
+            <Plus className="w-4 h-4" /> Add Filter
           </Button>
 
           <p className="text-sm text-muted-foreground mt-4">
             {filters.length
-              ? `Showing ${filteredPlants.length} taxa matching selected filters.`
+              ? `Showing ${filteredPlants.length} taxa matching filters.`
               : "Add filters to narrow down taxa."}
           </p>
         </main>
 
-        {/* direita: imagens */}
+        {/* Painel direito com imagens */}
         <ScrollArea className="border-l border-border flex-1 overflow-auto p-4 dark-scrollbar">
-          <Card>
+          <Card className="bg-card text-card-foreground">
             <CardHeader>
               <CardTitle>Images</CardTitle>
             </CardHeader>
@@ -312,8 +330,8 @@ export default function FilterPage() {
                           <Image
                             src={img.url}
                             alt={img.legend || ""}
-                            width={300}
-                            height={200}
+                            width={260}
+                            height={180}
                             className="rounded-md border border-border"
                           />
                           {img.legend && (
