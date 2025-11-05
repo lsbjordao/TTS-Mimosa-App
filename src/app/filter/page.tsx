@@ -235,6 +235,7 @@ export default function FilterPage() {
             })}
           </div>
 
+
           {/* Botão de adicionar filtro */}
           <Button
             variant="outline"
