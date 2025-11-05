@@ -36,6 +36,7 @@ export default function FilterPage() {
   >([]);
   const [filters, setFilters] = useState<Filter[]>([]);
   const [filteredPlants, setFilteredPlants] = useState<any[]>([]);
+  const [propertySearch, setPropertySearch] = useState<string>("");
 
   function getByPath(obj: any, path: string) {
     return path
@@ -109,11 +110,24 @@ export default function FilterPage() {
         if (f.mode === "property_value") {
           return getByPath(p, f.path) === f.value;
         } else if (f.mode === "property") {
-          // busca por nome de propriedade
-          const lower = f.path.toLowerCase();
-          return stringPaths.some((sp) =>
-            sp.path.toLowerCase().includes(lower)
-          );
+          // Filtra por propriedade - busca em qualquer campo que contenha a string
+          const searchTerm = f.path.toLowerCase();
+          
+          // Busca recursiva em todas as propriedades string do objeto
+          const searchInObject = (obj: any): boolean => {
+            if (typeof obj === "string") {
+              return obj.toLowerCase().includes(searchTerm);
+            }
+            if (Array.isArray(obj)) {
+              return obj.some(item => searchInObject(item));
+            }
+            if (obj && typeof obj === "object") {
+              return Object.values(obj).some(value => searchInObject(value));
+            }
+            return false;
+          };
+          
+          return searchInObject(p);
         }
         return true;
       })
@@ -123,6 +137,7 @@ export default function FilterPage() {
 
   const addFilter = () => {
     setFilters([...filters, { mode: "property", path: "", value: "" }]);
+    setPropertySearch("");
   };
 
   const removeFilter = (index: number) => {
@@ -139,10 +154,27 @@ export default function FilterPage() {
     if (field === "mode") {
       newFilters[index].path = "";
       newFilters[index].value = "";
+      setPropertySearch("");
     }
-    if (field === "path") newFilters[index].value = "";
+    if (field === "path") {
+      newFilters[index].value = "";
+    }
     setFilters(newFilters);
   };
+
+  const handlePropertySearch = (index: number, searchValue: string) => {
+    setPropertySearch(searchValue);
+    // Aplica o filtro automaticamente enquanto digita no modo property
+    if (filters[index].mode === "property") {
+      const newFilters = [...filters];
+      newFilters[index].path = searchValue;
+      setFilters(newFilters);
+    }
+  };
+
+  const filteredStringPaths = stringPaths.filter((sp) =>
+    sp.path.toLowerCase().includes(propertySearch.toLowerCase())
+  );
 
   return (
     <div className="w-full h-screen flex flex-col bg-background text-foreground overflow-hidden">
@@ -192,7 +224,6 @@ export default function FilterPage() {
                           v as "property" | "property_value"
                         )
                       }
-                   
                     >
                       <SelectTrigger className="w-[180px] text-sm">
                         <SelectValue placeholder="Select type..." />
@@ -218,19 +249,21 @@ export default function FilterPage() {
                   {/* Campo de filtragem dependendo do modo */}
                   {f.mode === "property" ? (
                     <div className="flex flex-col gap-2">
-                      <p className="text-xs text-muted-foreground">Search property</p>
+                      <p className="text-xs text-muted-foreground">Search in all properties</p>
                       <div className="border rounded-md">
                         <Command>
-                          <CommandInput placeholder="Search field name..." />
-                          <CommandList>
+                          <CommandInput 
+                            placeholder="Type to search in all properties..." 
+                            value={propertySearch}
+                            onValueChange={(value) => handlePropertySearch(i, value)}
+                          />
+                          <CommandList className="max-h-[120px]">
                             <CommandEmpty>No matching fields.</CommandEmpty>
                             <CommandGroup>
-                              {stringPaths.map((sp) => (
+                              {filteredStringPaths.slice(0, 10).map((sp) => (
                                 <CommandItem
                                   key={sp.path}
-                                  onSelect={() =>
-                                    updateFilter(i, "path", sp.path)
-                                  }
+                                  className="text-xs py-1"
                                 >
                                   {sp.path}
                                 </CommandItem>
@@ -239,6 +272,9 @@ export default function FilterPage() {
                           </CommandList>
                         </Command>
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        Showing fields matching: "{f.path || propertySearch}"
+                      </p>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
@@ -247,8 +283,11 @@ export default function FilterPage() {
                       {/* seletor de campo */}
                       <div className="border rounded-md">
                         <Command>
-                          <CommandInput placeholder="Search field name..." />
-                          <CommandList>
+                          <CommandInput 
+                            placeholder="Search field name..." 
+                            className="h-9"
+                          />
+                          <CommandList className="max-h-[120px]">
                             <CommandEmpty>No matching fields.</CommandEmpty>
                             <CommandGroup>
                               {stringPaths.map((sp) => (
@@ -257,6 +296,7 @@ export default function FilterPage() {
                                   onSelect={() =>
                                     updateFilter(i, "path", sp.path)
                                   }
+                                  className="text-xs py-1"
                                 >
                                   {sp.path}
                                 </CommandItem>
