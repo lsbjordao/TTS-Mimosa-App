@@ -31,20 +31,38 @@ const JSONGrid = dynamic(() => import("@redheadphone/react-json-grid"), {
 });
 
 // ---------- Função auxiliar: extrai imagens ----------
-function extractImagesWithPaths(obj: any, path: string[] = []) {
+function extractImagesWithPaths(obj: any, path: string[] = []): { path: string; url: string; legend?: string }[] {
   let results: { path: string; url: string; legend?: string }[] = [];
+  
+  if (!obj || typeof obj !== 'object') return results;
+  
   if (Array.isArray(obj)) {
     obj.forEach((item, i) =>
       results.push(...extractImagesWithPaths(item, [...path, `[${i}]`]))
     );
-  } else if (typeof obj === "object" && obj !== null) {
+  } else {
     let url, legend;
-    for (const [key, value] of Object.entries(obj)) {
-      if (key === "imageUrl") url = value as string;
-      else if (key === "imageUrlLegend") legend = value as string;
-      else results.push(...extractImagesWithPaths(value, [...path, key]));
+    
+    // Verifica se este objeto tem imageUrl
+    if (obj.imageUrl && typeof obj.imageUrl === 'string') {
+      url = obj.imageUrl;
+      legend = obj.imageUrlLegend || obj.legend || undefined;
+      
+      if (url) {
+        results.push({ 
+          path: path.join(".") || "root", 
+          url, 
+          legend 
+        });
+      }
     }
-    if (url) results.push({ path: path.join(".") || "root", url, legend });
+    
+    // Continua procurando em outras propriedades
+    for (const [key, value] of Object.entries(obj)) {
+      if (key !== "imageUrl" && key !== "imageUrlLegend" && key !== "legend") {
+        results.push(...extractImagesWithPaths(value, [...path, key]));
+      }
+    }
   }
   return results;
 }
@@ -119,18 +137,31 @@ export default function Home() {
   // ---------- Carrega dados ----------
   useEffect(() => {
     fetch("/TTS-Mimosa-App/data/MimosaDB.json")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
+        console.log("Dados carregados:", data.length, "plantas");
         setPlants(data);
 
         // Extrai todas as imagens globais
-        const all = data.flatMap((plant: any) =>
-          extractImagesWithPaths(plant).map((img) => ({
+        const all = data.flatMap((plant: any) => {
+          const images = extractImagesWithPaths(plant);
+          console.log(`Planta ${plant.specificEpithet}: ${images.length} imagens encontradas`);
+          images.forEach(img => console.log("URL da imagem:", img.url));
+          return images.map((img) => ({
             ...img,
             specificEpithet: plant.specificEpithet,
-          }))
-        );
+          }));
+        });
+        console.log("Total de imagens extraídas:", all.length);
         setAllImages(all);
+      })
+      .catch((error) => {
+        console.error("Error loading data:", error);
       });
   }, []);
 
@@ -360,10 +391,11 @@ export default function Home() {
               {plants.map((p, i) => (
                 <button
                   key={i}
-                  className={`w-full text-left px-2 py-1 rounded hover:bg-muted ${selected?.specificEpithet === p.specificEpithet
-                    ? "bg-muted"
-                    : ""
-                    }`}
+                  className={`w-full text-left px-2 py-1 rounded hover:bg-muted ${
+                    selected?.specificEpithet === p.specificEpithet
+                      ? "bg-muted"
+                      : ""
+                  }`}
                   onClick={() => setSelected(p)}
                 >
                   <i>Mimosa {p.specificEpithet || "sp."}</i>
@@ -397,7 +429,10 @@ export default function Home() {
                 <Image
                   src="/TTS-Mimosa-App/tts.png"
                   alt="TypeTaxonScript Logo"
+                  width={80}
+                  height={80}
                   className="w-auto h-20 opacity-30"
+                  priority
                 />
               </div>
             </>
@@ -408,33 +443,51 @@ export default function Home() {
         <ScrollArea className="border-l border-border p-3 h-full overflow-auto dark-scrollbar">
           <Card className="bg-card text-card-foreground w-full max-w-full box-border">
             <CardHeader>
-              <CardTitle>Images</CardTitle>
+              <CardTitle>Images ({images.length})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {images.length > 0 ? (
                 images.map((img: any, idx: any) => (
-                  <div key={idx} className="space-y-1">
+                  <div key={idx} className="space-y-2 p-2 border rounded-lg bg-muted/10">
                     {!selected && img.specificEpithet && (
-                      <p className="text-xs text-primary text-center">
+                      <p className="text-xs text-primary text-center font-medium">
                         <i>Mimosa {img.specificEpithet}</i>
                       </p>
                     )}
                     <p
-                      className="text-sm text-muted-foreground font-mono whitespace-normal break-words"
+                      className="text-xs text-muted-foreground font-mono whitespace-normal break-words bg-muted p-1 rounded"
                       title={img.path}
                     >
                       {renderPathGrouped(img.path, 3)}
                     </p>
                     <div
-                      className="bg-muted rounded overflow-hidden cursor-pointer flex justify-center"
+                      className="bg-muted rounded overflow-hidden cursor-pointer flex justify-center hover:opacity-90 transition-opacity min-h-[150px] items-center"
                       onClick={() => setModalIndex(idx)}
                     >
+                      {/* IMAGEM COM LOADING PRIORITÁRIO */}
                       <Image
                         src={img.url}
-                        alt={`Imagem ${idx + 1}`}
-                        width={800}
-                        height={600}
-                        className="h-auto object-contain"
+                        alt={img.legend || `Image ${idx + 1}`}
+                        width={280}
+                        height={200}
+                        className="h-auto max-h-48 object-contain"
+                        loading="eager" // FORÇA CARREGAMENTO IMEDIATO
+                        priority={idx < 3} // PRIORIZA AS PRIMEIRAS IMAGENS
+                        onError={(e) => {
+                          console.error("Erro ao carregar imagem:", img.url);
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                          // Mostra fallback
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="w-full h-32 flex items-center justify-center bg-red-50 border border-red-200 rounded">
+                                <span class="text-red-500 text-sm">Failed to load image</span>
+                              </div>
+                            `;
+                          }
+                        }}
+                        onLoad={() => console.log("Imagem carregada com sucesso:", img.url)}
                       />
                     </div>
                     {img.legend && (
@@ -445,7 +498,12 @@ export default function Home() {
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground">None found.</p>
+                <div className="text-center p-4">
+                  <p className="text-muted-foreground">No images found.</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {plants.length > 0 ? "Select a taxon to see images" : "Loading data..."}
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -460,14 +518,14 @@ export default function Home() {
         >
           <button
             onClick={closeModal}
-            className="absolute top-4 right-6 text-white text-3xl font-light hover:text-primary transition"
+            className="absolute top-4 right-6 text-white text-3xl font-light hover:text-primary transition z-10"
           >
             ×
           </button>
 
           <button
             onClick={showPrev}
-            className="absolute left-4 text-white text-5xl font-light hover:text-primary transition select-none"
+            className="absolute left-4 text-white text-5xl font-light hover:text-primary transition select-none z-10"
           >
             ‹
           </button>
@@ -475,24 +533,49 @@ export default function Home() {
           <div className="max-w-[90vw] max-h-[80vh] flex flex-col items-center">
             <Image
               src={images[modalIndex].url}
-              alt={`Imagem ${modalIndex + 1}`}
+              alt={images[modalIndex].legend || `Image ${modalIndex + 1}`}
               width={1200}
               height={900}
               className="object-contain max-h-[80vh]"
+              loading="eager" // FORÇA CARREGAMENTO IMEDIATO NO MODAL
+              priority // MÁXIMA PRIORIDADE
+              onError={(e) => {
+                console.error("Erro ao carregar imagem no modal:", images[modalIndex].url);
+                const target = e.currentTarget;
+                target.style.display = 'none';
+                // Fallback no modal
+                const container = target.parentElement;
+                if (container) {
+                  container.innerHTML = `
+                    <div class="w-64 h-64 flex items-center justify-center bg-red-100 border-2 border-red-300 rounded">
+                      <span class="text-red-600 font-medium">Image failed to load</span>
+                    </div>
+                  `;
+                }
+              }}
             />
             {images[modalIndex].legend && (
               <p className="text-sm text-muted-foreground italic mt-2 text-center text-white">
                 {images[modalIndex].legend}
               </p>
             )}
+            {images[modalIndex].specificEpithet && !selected && (
+              <p className="text-sm text-white italic mt-1">
+                Mimosa {images[modalIndex].specificEpithet}
+              </p>
+            )}
           </div>
 
           <button
             onClick={showNext}
-            className="absolute right-4 text-white text-5xl font-light hover:text-primary transition select-none"
+            className="absolute right-4 text-white text-5xl font-light hover:text-primary transition select-none z-10"
           >
             ›
           </button>
+
+          <div className="absolute bottom-4 text-white text-sm">
+            {modalIndex + 1} / {images.length}
+          </div>
         </div>
       )}
     </div>

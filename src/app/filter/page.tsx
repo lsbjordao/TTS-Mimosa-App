@@ -49,6 +49,12 @@ export default function FilterPage() {
   const [openPropertySelect, setOpenPropertySelect] = useState<number | null>(null);
   const [openPropertySearch, setOpenPropertySearch] = useState<number | null>(null);
 
+  // Estado para controle do modal de imagem
+  const [modalIndex, setModalIndex] = useState<number | null>(null);
+  const [allImages, setAllImages] = useState<
+    { path: string; url: string; legend?: string; specificEpithet?: string }[]
+  >([]);
+
   function getByPath(obj: any, path: string) {
     return path
       .split(".")
@@ -170,39 +176,110 @@ export default function FilterPage() {
     };
   }
 
-  function extractImagesWithPaths(obj: any, path: string[] = []) {
+  // ---------- Função auxiliar: extrai imagens (atualizada) ----------
+  function extractImagesWithPaths(obj: any, path: string[] = []): { path: string; url: string; legend?: string }[] {
     let results: { path: string; url: string; legend?: string }[] = [];
+    
+    if (!obj || typeof obj !== 'object') return results;
+    
     if (Array.isArray(obj)) {
       obj.forEach((item, i) =>
         results.push(...extractImagesWithPaths(item, [...path, `[${i}]`]))
       );
-    } else if (typeof obj === "object" && obj !== null) {
+    } else {
       let url, legend;
-      for (const [key, value] of Object.entries(obj)) {
-        if (key === "imageUrl") url = value as string;
-        else if (key === "imageUrlLegend") legend = value as string;
-        else results.push(...extractImagesWithPaths(value, [...path, key]));
+      
+      // Verifica se este objeto tem imageUrl
+      if (obj.imageUrl && typeof obj.imageUrl === 'string') {
+        url = obj.imageUrl;
+        legend = obj.imageUrlLegend || obj.legend || undefined;
+        
+        if (url) {
+          results.push({ 
+            path: path.join(".") || "root", 
+            url, 
+            legend 
+          });
+        }
       }
-      if (url) results.push({ path: path.join(".") || "root", url, legend });
+      
+      // Continua procurando em outras propriedades
+      for (const [key, value] of Object.entries(obj)) {
+        if (key !== "imageUrl" && key !== "imageUrlLegend" && key !== "legend") {
+          results.push(...extractImagesWithPaths(value, [...path, key]));
+        }
+      }
     }
     return results;
   }
 
+  // ---------- Função auxiliar: insere <wbr/> a cada 3 pontos ----------
+  function renderPathGrouped(path: string, groupSize = 3) {
+    const parts = path.split(".");
+    const groups: string[] = [];
+    for (let i = 0; i < parts.length; i += groupSize) {
+      groups.push(parts.slice(i, i + groupSize).join("."));
+    }
+    return groups.flatMap((g, i) =>
+      i === groups.length - 1 ? [g] : [g, <wbr key={i} />]
+    );
+  }
+
   useEffect(() => {
     fetch("/TTS-Mimosa-App/data/MimosaDB.json")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
+        console.log("Dados carregados:", data.length, "plantas");
         setPlants(data);
         const extractedPaths = extractPathsByMode(data);
         setPathData(extractedPaths);
         console.log("Total paths for Property mode:", extractedPaths.allPaths.length);
         console.log("Total paths for Property+Value mode:", extractedPaths.valuePaths.length);
         setFilteredPlants(data);
+
+        // Extrai todas as imagens globais
+        const all = data.flatMap((plant: any) => {
+          const images = extractImagesWithPaths(plant);
+          console.log(`Planta ${plant.specificEpithet}: ${images.length} imagens encontradas`);
+          images.forEach(img => console.log("URL da imagem:", img.url));
+          return images.map((img) => ({
+            ...img,
+            specificEpithet: plant.specificEpithet,
+          }));
+        });
+        console.log("Total de imagens extraídas:", all.length);
+        setAllImages(all);
       })
       .catch((error) => {
         console.error("Error loading data:", error);
       });
   }, []);
+
+  // ---------- Controle do modal ----------
+  const closeModal = () => setModalIndex(null);
+  const showPrev = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setModalIndex((prev) => (prev! > 0 ? prev! - 1 : allImages.length - 1));
+  };
+  const showNext = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setModalIndex((prev) => (prev! < allImages.length - 1 ? prev! + 1 : 0));
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeModal();
+      if (e.key === "ArrowLeft") showPrev();
+      if (e.key === "ArrowRight") showNext();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [allImages.length]);
 
   // aplicar filtros
   useEffect(() => {
@@ -539,34 +616,69 @@ export default function FilterPage() {
           </p>
         </main>
 
-        {/* Painel direito com imagens */}
+        {/* Painel direito com imagens - CORRIGIDO */}
         <ScrollArea className="border-l border-border flex-1 overflow-auto p-4 dark-scrollbar">
           <Card className="bg-card text-card-foreground">
             <CardHeader>
-              <CardTitle>Images</CardTitle>
+              <CardTitle>Images ({filteredPlants.flatMap(p => extractImagesWithPaths(p)).length})</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               {filteredPlants.length === 0 ? (
                 <p className="text-muted-foreground text-sm">No matches.</p>
               ) : (
                 filteredPlants.flatMap((p, idx) => {
                   const imgs = extractImagesWithPaths(p);
                   return imgs.length > 0 ? (
-                    <div key={idx}>
-                      <p className="text-sm text-primary italic text-center mb-1">
+                    <div key={idx} className="space-y-3 p-3 border rounded-lg bg-muted/10">
+                      <p className="text-sm text-primary italic text-center font-medium">
                         Mimosa {p.specificEpithet}
                       </p>
                       {imgs.map((img, j) => (
-                        <div key={j} className="mb-2">
-                          <Image
-                            src={img.url}
-                            alt={img.legend || ""}
-                            width={260}
-                            height={180}
-                            className="rounded-md border border-border"
-                          />
+                        <div key={j} className="space-y-2">
+                          <p
+                            className="text-xs text-muted-foreground font-mono whitespace-normal break-words bg-muted p-1 rounded"
+                            title={img.path}
+                          >
+                            {renderPathGrouped(img.path, 3)}
+                          </p>
+                          <div
+                            className="bg-muted rounded overflow-hidden cursor-pointer flex justify-center hover:opacity-90 transition-opacity min-h-[150px] items-center"
+                            onClick={() => {
+                              // Encontrar o índice global desta imagem
+                              const globalIndex = allImages.findIndex(
+                                globalImg => 
+                                  globalImg.url === img.url && 
+                                  globalImg.specificEpithet === p.specificEpithet
+                              );
+                              setModalIndex(globalIndex !== -1 ? globalIndex : 0);
+                            }}
+                          >
+                            <Image
+                              src={img.url}
+                              alt={img.legend || `Image of Mimosa ${p.specificEpithet}`}
+                              width={260}
+                              height={180}
+                              className="rounded-md border border-border object-contain max-h-48"
+                              loading="eager"
+                              priority={j < 2}
+                              onError={(e) => {
+                                console.error("Erro ao carregar imagem:", img.url);
+                                const target = e.currentTarget;
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  parent.innerHTML = `
+                                    <div class="w-full h-32 flex items-center justify-center bg-red-50 border border-red-200 rounded">
+                                      <span class="text-red-500 text-sm">Failed to load image</span>
+                                    </div>
+                                  `;
+                                }
+                              }}
+                              onLoad={() => console.log("Imagem carregada com sucesso:", img.url)}
+                            />
+                          </div>
                           {img.legend && (
-                            <p className="text-xs text-muted-foreground italic text-center mt-1">
+                            <p className="text-xs text-muted-foreground italic text-center">
                               {img.legend}
                             </p>
                           )}
@@ -580,6 +692,74 @@ export default function FilterPage() {
           </Card>
         </ScrollArea>
       </div>
+
+      {/* 🖼️ Modal de imagem (igual da página principal) */}
+      {modalIndex !== null && allImages[modalIndex] && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center"
+          onClick={closeModal}
+        >
+          <button
+            onClick={closeModal}
+            className="absolute top-4 right-6 text-white text-3xl font-light hover:text-primary transition z-10"
+          >
+            ×
+          </button>
+
+          <button
+            onClick={showPrev}
+            className="absolute left-4 text-white text-5xl font-light hover:text-primary transition select-none z-10"
+          >
+            ‹
+          </button>
+
+          <div className="max-w-[90vw] max-h-[80vh] flex flex-col items-center">
+            <Image
+              src={allImages[modalIndex].url}
+              alt={allImages[modalIndex].legend || `Image ${modalIndex + 1}`}
+              width={1200}
+              height={900}
+              className="object-contain max-h-[80vh]"
+              loading="eager"
+              priority
+              onError={(e) => {
+                console.error("Erro ao carregar imagem no modal:", allImages[modalIndex].url);
+                const target = e.currentTarget;
+                target.style.display = 'none';
+                const container = target.parentElement;
+                if (container) {
+                  container.innerHTML = `
+                    <div class="w-64 h-64 flex items-center justify-center bg-red-100 border-2 border-red-300 rounded">
+                      <span class="text-red-600 font-medium">Image failed to load</span>
+                    </div>
+                  `;
+                }
+              }}
+            />
+            {allImages[modalIndex].legend && (
+              <p className="text-sm text-muted-foreground italic mt-2 text-center text-white">
+                {allImages[modalIndex].legend}
+              </p>
+            )}
+            {allImages[modalIndex].specificEpithet && (
+              <p className="text-sm text-white italic mt-1">
+                Mimosa {allImages[modalIndex].specificEpithet}
+              </p>
+            )}
+          </div>
+
+          <button
+            onClick={showNext}
+            className="absolute right-4 text-white text-5xl font-light hover:text-primary transition select-none z-10"
+          >
+            ›
+          </button>
+
+          <div className="absolute bottom-4 text-white text-sm">
+            {modalIndex + 1} / {allImages.length}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
