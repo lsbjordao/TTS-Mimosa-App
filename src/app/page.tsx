@@ -30,21 +30,33 @@ const JSONGrid = dynamic(() => import("@redheadphone/react-json-grid"), {
   ssr: false,
 });
 
-// ---------- Função auxiliar: extrai imagens ----------
+// ---------- Função auxiliar CORRIGIDA: extrai imagens de imageUrl e imageUrlLegend ----------
 function extractImagesWithPaths(obj: any, path: string[] = []) {
   let results: { path: string; url: string; legend?: string }[] = [];
+  
   if (Array.isArray(obj)) {
     obj.forEach((item, i) =>
       results.push(...extractImagesWithPaths(item, [...path, `[${i}]`]))
     );
   } else if (typeof obj === "object" && obj !== null) {
-    let url, legend;
-    for (const [key, value] of Object.entries(obj)) {
-      if (key === "imageUrl") url = value as string;
-      else if (key === "imageUrlLegend") legend = value as string;
-      else results.push(...extractImagesWithPaths(value, [...path, key]));
+    // Verifica se este objeto tem imageUrl
+    if (obj.imageUrl && typeof obj.imageUrl === "string") {
+      const url = obj.imageUrl;
+      const legend = obj.imageUrlLegend || undefined;
+      
+      if (url) {
+        results.push({ 
+          path: path.join(".") || "root", 
+          url, 
+          legend 
+        });
+      }
     }
-    if (url) results.push({ path: path.join(".") || "root", url, legend });
+    
+    // Continua procurando em outras propriedades recursivamente
+    for (const [key, value] of Object.entries(obj)) {
+      results.push(...extractImagesWithPaths(value, [...path, key]));
+    }
   }
   return results;
 }
@@ -131,6 +143,16 @@ export default function Home() {
           }))
         );
         setAllImages(all);
+        
+        // Log para debug (remover depois)
+        console.log("Total de plantas:", data.length);
+        console.log("Total de imagens encontradas:", all.length);
+        if (all.length > 0) {
+          console.log("Primeiras 3 imagens:", all.slice(0, 3));
+        }
+      })
+      .catch((error) => {
+        console.error("Error loading data:", error);
       });
   }, []);
 
@@ -260,7 +282,6 @@ export default function Home() {
               <div className="flex flex-col gap-3">
                 <h4 className="font-medium text-sm mb-1">Search settings</h4>
 
-                {/* 🔍 Limite de resultados */}
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">Result limit:</label>
                   <select
@@ -278,7 +299,6 @@ export default function Home() {
                   </select>
                 </div>
 
-                {/* ✅ Checkboxes de busca */}
                 <div className="flex flex-col gap-1 mt-2">
                   <label className="text-xs text-muted-foreground">Search in:</label>
 
