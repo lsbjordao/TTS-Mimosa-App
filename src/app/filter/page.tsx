@@ -163,85 +163,34 @@ export default function FilterPage() {
     };
   }
 
-  // ---------- Função auxiliar MELHORADA: extrai imagens ----------
-  function extractImagesWithPaths(obj: any, currentPath: string[] = []): { path: string; url: string; legend?: string }[] {
-    const results: { path: string; url: string; legend?: string }[] = [];
+  // ---------- Função auxiliar: extrai imagens (PADRONIZADA) ----------
+  function extractImagesWithPaths(obj: any, path: string[] = []) {
+    let results: { path: string; url: string; legend?: string }[] = [];
     
-    if (!obj || typeof obj !== 'object') return results;
-
-    // Se é um array, processa cada item
     if (Array.isArray(obj)) {
-      obj.forEach((item, index) => {
-        results.push(...extractImagesWithPaths(item, [...currentPath, `[${index}]`]));
-      });
-      return results;
-    }
-
-    // Verifica se este objeto tem propriedades de imagem
-    const imageKeys = Object.keys(obj).filter(key => 
-      key.toLowerCase().includes('image') || 
-      key.toLowerCase().includes('url') ||
-      key.toLowerCase().includes('photo')
-    );
-
-    // Log para debug - mostra as chaves que podem conter imagens
-    if (imageKeys.length > 0) {
-      console.log(`Encontradas chaves de imagem em ${currentPath.join('.')}:`, imageKeys);
-    }
-
-    // Procura por URLs de imagem em várias possíveis propriedades
-    let imageUrl: string | undefined;
-    let legend: string | undefined;
-
-    // Verifica várias possíveis propriedades de imagem
-    if (obj.imageUrl && typeof obj.imageUrl === 'string') {
-      imageUrl = obj.imageUrl;
-    } else if (obj.url && typeof obj.url === 'string' && obj.url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
-      imageUrl = obj.url;
-    } else if (obj.src && typeof obj.src === 'string' && obj.src.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
-      imageUrl = obj.src;
-    } else if (obj.photo && typeof obj.photo === 'string' && obj.photo.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
-      imageUrl = obj.photo;
-    }
-
-    // Verifica várias possíveis propriedades de legenda
-    if (obj.imageUrlLegend && typeof obj.imageUrlLegend === 'string') {
-      legend = obj.imageUrlLegend;
-    } else if (obj.legend && typeof obj.legend === 'string') {
-      legend = obj.legend;
-    } else if (obj.caption && typeof obj.caption === 'string') {
-      legend = obj.caption;
-    } else if (obj.description && typeof obj.description === 'string') {
-      legend = obj.description;
-    }
-
-    // Se encontrou uma imagem, adiciona aos resultados
-    if (imageUrl) {
-      const path = currentPath.join('.') || 'root';
-      console.log(`✅ Imagem encontrada: ${imageUrl} em ${path}`);
-      results.push({
-        path,
-        url: imageUrl,
-        legend
-      });
-    }
-
-    // Continua procurando em outras propriedades (exceto as que já verificamos)
-    for (const [key, value] of Object.entries(obj)) {
-      // Pula propriedades que já verificamos para imagens
-      if ([
-        'imageUrl', 'url', 'src', 'photo', 
-        'imageUrlLegend', 'legend', 'caption', 'description'
-      ].includes(key)) {
-        continue;
+      obj.forEach((item, i) =>
+        results.push(...extractImagesWithPaths(item, [...path, `[${i}]`]))
+      );
+    } else if (typeof obj === "object" && obj !== null) {
+      // Verifica se este objeto tem imageUrl
+      if (obj.imageUrl && typeof obj.imageUrl === "string") {
+        const url = obj.imageUrl;
+        const legend = obj.imageUrlLegend || undefined;
+        
+        if (url) {
+          results.push({ 
+            path: path.join(".") || "root", 
+            url, 
+            legend 
+          });
+        }
       }
-
-      // Se o valor é um objeto ou array, continua a busca recursiva
-      if (value && typeof value === 'object') {
-        results.push(...extractImagesWithPaths(value, [...currentPath, key]));
+      
+      // Continua procurando em outras propriedades recursivamente
+      for (const [key, value] of Object.entries(obj)) {
+        results.push(...extractImagesWithPaths(value, [...path, key]));
       }
     }
-
     return results;
   }
 
@@ -282,52 +231,25 @@ export default function FilterPage() {
       });
     });
 
-    console.log(`Filtradas ${filtered.length} imagens de ${allImages.length} totais`);
     return filtered;
   }
 
   useEffect(() => {
     fetch("/TTS-Mimosa-App/data/MimosaDB.json")
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
-        console.log("Dados carregados:", data.length, "plantas");
         setPlants(data);
         const extractedPaths = extractPathsByMode(data);
         setPathData(extractedPaths);
         setFilteredPlants(data);
 
-        // Extrai todas as imagens globais - COM MAIS LOGS PARA DEBUG
-        console.log("Iniciando extração de imagens...");
-        const all = data.flatMap((plant: any) => {
-          const images = extractImagesWithPaths(plant);
-          if (images.length > 0) {
-            console.log(`✅ Planta ${plant.specificEpithet}: ${images.length} imagens encontradas`);
-            images.forEach(img => console.log(`   📷 ${img.url}`));
-          } else {
-            console.log(`❌ Planta ${plant.specificEpithet}: NENHUMA imagem encontrada`);
-            // Log da estrutura da planta para debug
-            console.log("Estrutura da planta:", Object.keys(plant));
-          }
-          return images.map((img) => ({
+        // Extrai todas as imagens globais
+        const all = data.flatMap((plant: any) =>
+          extractImagesWithPaths(plant).map((img) => ({
             ...img,
             specificEpithet: plant.specificEpithet,
-          }));
-        });
-        
-        console.log("🚀 Total de imagens extraídas:", all.length);
-        if (all.length === 0) {
-          console.log("❌ NENHUMA IMAGEM ENCONTRADA! Verificando estrutura do JSON...");
-          // Examina algumas plantas para ver a estrutura
-          data.slice(0, 3).forEach((plant: any, index: number) => {
-            console.log(`Estrutura da planta ${index + 1} (${plant.specificEpithet}):`, JSON.stringify(plant, null, 2).substring(0, 500) + "...");
-          });
-        }
-        
+          }))
+        );
         setAllImages(all);
         setFilteredImages(all);
       })
@@ -719,7 +641,6 @@ export default function FilterPage() {
                         loading="eager"
                         priority={idx < 3}
                         onError={(e) => {
-                          console.error("Erro ao carregar imagem:", img.url);
                           const target = e.currentTarget;
                           target.style.display = 'none';
                           const parent = target.parentElement;
@@ -776,7 +697,6 @@ export default function FilterPage() {
               loading="eager"
               priority
               onError={(e) => {
-                console.error("Erro ao carregar imagem no modal:", filteredImages[modalIndex].url);
                 const target = e.currentTarget;
                 target.style.display = 'none';
                 const container = target.parentElement;
