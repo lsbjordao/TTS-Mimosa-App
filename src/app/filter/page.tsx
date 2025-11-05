@@ -147,9 +147,9 @@ export default function FilterPage() {
       </div>
 
       {/* Corpo dividido em 3 colunas */}
-      <div className="grid grid-cols-[300px_1fr_300px] flex-1 overflow-hidden">
+      <div className="grid grid-cols-[300px_1fr_300px] flex-1 min-h-0">
         {/* Lista de táxons à esquerda */}
-        <ScrollArea className="border-r border-border h-full p-4 dark-scrollbar">
+        <ScrollArea className="border-r border-border flex-1 overflow-auto p-4 dark-scrollbar">
           <Card className="bg-card text-card-foreground">
             <CardHeader>
               <CardTitle>Taxa ({filteredPlants.length})</CardTitle>
@@ -239,7 +239,7 @@ export default function FilterPage() {
         </main>
 
         {/* Painel direito: imagens */}
-        <ScrollArea className="border-l border-border h-full p-4 dark-scrollbar">
+        <ScrollArea className="border-l border-border flex-1 overflow-auto p-4 dark-scrollbar">
           <Card className="bg-card text-card-foreground">
             <CardHeader>
               <CardTitle>Images</CardTitle>

@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Settings, Github, BookOpenText, FileText, ChartPie } from "lucide-react";
+import { Search, Settings, Github, BookOpenText, FileText, ChartPie, Funnel } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
@@ -60,6 +60,15 @@ export default function Header({
           title="Analytics"
         >
           <ChartPie className="w-5 h-5 text-muted-foreground" />
+        </Link>
+
+        <Link
+          href="/filter"
+          rel="noopener noreferrer"
+          className="flex items-center"
+          title="Filter"
+        >
+          <Funnel className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
         </Link>
 
         <div className="ml-auto flex items-center gap-2">
