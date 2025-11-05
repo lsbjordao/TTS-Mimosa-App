@@ -1,4 +1,3 @@
-// ./src/app/filter/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -25,6 +24,7 @@ import { X, Plus } from "lucide-react";
 import Image from "next/image";
 
 interface Filter {
+  mode: "property" | "property_value";
   path: string;
   value: string;
 }
@@ -36,37 +36,30 @@ export default function FilterPage() {
   >([]);
   const [filters, setFilters] = useState<Filter[]>([]);
   const [filteredPlants, setFilteredPlants] = useState<any[]>([]);
-  const [allImages, setAllImages] = useState<
-    { path: string; url: string; legend?: string; specificEpithet?: string }[]
-  >([]);
 
-  // ---------- Função: obtém valor via path ----------
   function getByPath(obj: any, path: string) {
     return path
       .split(".")
-      .reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
+      .reduce(
+        (acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined),
+        obj
+      );
   }
 
-  // ---------- Função: coleta caminhos de strings ----------
   function extractStringPaths(data: any[]) {
     const paths: Record<string, Set<string>> = {};
-
     function recurse(obj: any, prefix = "") {
-      if (Array.isArray(obj)) {
-        obj.forEach((v) => recurse(v, prefix));
-      } else if (obj && typeof obj === "object") {
+      if (Array.isArray(obj)) obj.forEach((v) => recurse(v, prefix));
+      else if (obj && typeof obj === "object") {
         for (const [key, value] of Object.entries(obj)) {
           const newPath = prefix ? `${prefix}.${key}` : key;
           if (typeof value === "string" && value.trim() !== "") {
             if (!paths[newPath]) paths[newPath] = new Set();
             paths[newPath].add(value);
-          } else {
-            recurse(value, newPath);
-          }
+          } else recurse(value, newPath);
         }
       }
     }
-
     data.forEach((item) => recurse(item));
     return Object.entries(paths)
       .map(([path, set]) => ({
@@ -76,7 +69,6 @@ export default function FilterPage() {
       .sort((a, b) => a.path.localeCompare(b.path));
   }
 
-  // ---------- Função: extrai imagens ----------
   function extractImagesWithPaths(obj: any, path: string[] = []) {
     let results: { path: string; url: string; legend?: string }[] = [];
     if (Array.isArray(obj)) {
@@ -95,70 +87,69 @@ export default function FilterPage() {
     return results;
   }
 
-  // ---------- Carrega dados ----------
   useEffect(() => {
     fetch("/TTS-Mimosa-App/data/MimosaDB.json")
       .then((res) => res.json())
       .then((data) => {
         setPlants(data);
         setStringPaths(extractStringPaths(data));
-
-        // Extrai imagens globais
-        const all = data.flatMap((plant: any) =>
-          extractImagesWithPaths(plant).map((img) => ({
-            ...img,
-            specificEpithet: plant.specificEpithet,
-          }))
-        );
-        setAllImages(all);
         setFilteredPlants(data);
       });
   }, []);
 
-  // ---------- Aplica filtros ----------
+  // aplicar filtros
   useEffect(() => {
     if (filters.length === 0) {
       setFilteredPlants(plants);
       return;
     }
     const filtered = plants.filter((p) =>
-      filters.every((f) => getByPath(p, f.path) === f.value)
+      filters.every((f) => {
+        if (f.mode === "property_value") {
+          return getByPath(p, f.path) === f.value;
+        } else {
+          return Object.keys(p)
+            .join(".")
+            .includes(f.path.split(".").slice(-1)[0]); // busca simples
+        }
+      })
     );
     setFilteredPlants(filtered);
   }, [filters, plants]);
 
-  // ---------- Adiciona filtro ----------
   const addFilter = () => {
-    setFilters([...filters, { path: "", value: "" }]);
+    setFilters([...filters, { mode: "property_value", path: "", value: "" }]);
   };
 
-  // ---------- Remove filtro ----------
   const removeFilter = (index: number) => {
-    const newFilters = filters.filter((_, i) => i !== index);
-    setFilters(newFilters);
+    setFilters(filters.filter((_, i) => i !== index));
   };
 
-  // ---------- Atualiza filtro ----------
-  const updateFilter = (index: number, field: "path" | "value", value: string) => {
+  const updateFilter = (
+    index: number,
+    field: keyof Filter,
+    value: string | "property" | "property_value"
+  ) => {
     const newFilters = [...filters];
-    newFilters[index][field] = value;
-    if (field === "path") newFilters[index].value = ""; // reseta valor quando muda path
+    (newFilters[index] as any)[field] = value;
+    if (field === "mode") {
+      newFilters[index].path = "";
+      newFilters[index].value = "";
+    }
+    if (field === "path") newFilters[index].value = "";
     setFilters(newFilters);
   };
 
-  // ---------- Renderização ----------
   return (
     <div className="w-full h-screen flex flex-col bg-background text-foreground overflow-hidden">
-      {/* Header fixo */}
       <div className="sticky top-0 z-10 bg-background border-b border-border">
         <Header />
       </div>
 
-      {/* Corpo dividido em 3 colunas */}
       <div className="grid grid-cols-[300px_1fr_300px] flex-1 min-h-0">
-        {/* Lista de táxons à esquerda */}
+        {/* esquerda */}
         <ScrollArea className="border-r border-border flex-1 overflow-auto p-4 dark-scrollbar">
-          <Card className="bg-card text-card-foreground">
+          <Card>
             <CardHeader>
               <CardTitle>Taxa ({filteredPlants.length})</CardTitle>
             </CardHeader>
@@ -172,11 +163,10 @@ export default function FilterPage() {
           </Card>
         </ScrollArea>
 
-        {/* Área central: filtros */}
+        {/* centro */}
         <main className="p-6 overflow-auto dark-scrollbar space-y-4">
           <h2 className="text-lg font-semibold">Filtering</h2>
 
-          {/* Campos de filtros */}
           <div className="space-y-3">
             {filters.map((f, i) => {
               const selectedPath = stringPaths.find((sp) => sp.path === f.path);
@@ -184,43 +174,93 @@ export default function FilterPage() {
 
               return (
                 <div key={i} className="flex items-center gap-2">
-                  {/* Select com busca (Command) */}
-                  <div className="w-full flex-1 border rounded-md">
-                    <Command>
-                      <CommandInput placeholder="Search field..." />
-                      <CommandList>
-                        <CommandEmpty>No results found.</CommandEmpty>
-                        <CommandGroup>
-                          {stringPaths.map((sp) => (
-                            <CommandItem
-                              key={sp.path}
-                              onSelect={() => updateFilter(i, "path", sp.path)}
-                            >
-                              {sp.path}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </div>
-
-                  {/* Select normal de valores */}
+                  {/* seletor de modo */}
                   <Select
-                    onValueChange={(value) => updateFilter(i, "value", value)}
-                    value={f.value}
-                    disabled={!f.path}
+                    value={f.mode}
+                    onValueChange={(v) =>
+                      updateFilter(i, "mode", v as "property" | "property_value")
+                    }
                   >
-                    <SelectTrigger className="w-full flex-1">
-                      <SelectValue placeholder="Select value..." />
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {valueOptions.map((v) => (
-                        <SelectItem key={v} value={v}>
-                          {v}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="property">Property</SelectItem>
+                      <SelectItem value="property_value">
+                        Property + Value
+                      </SelectItem>
+
                     </SelectContent>
                   </Select>
+
+                  {/* property: Command com busca */}
+                  {f.mode === "property" && (
+                    <div className="w-full flex-1 border rounded-md">
+                      <Command>
+                        <CommandInput placeholder="Search property..." />
+                        <CommandList>
+                          <CommandEmpty>No results found.</CommandEmpty>
+                          <CommandGroup>
+                            {stringPaths.map((sp) => (
+                              <CommandItem
+                                key={sp.path}
+                                onSelect={() =>
+                                  updateFilter(i, "path", sp.path)
+                                }
+                              >
+                                {sp.path}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </div>
+                  )}
+
+                  {/* property_value: Command + Select */}
+                  {f.mode === "property_value" && (
+                    <>
+                      <div className="w-full flex-1 border rounded-md">
+                        <Command>
+                          <CommandInput placeholder="Search field..." />
+                          <CommandList>
+                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandGroup>
+                              {stringPaths.map((sp) => (
+                                <CommandItem
+                                  key={sp.path}
+                                  onSelect={() =>
+                                    updateFilter(i, "path", sp.path)
+                                  }
+                                >
+                                  {sp.path}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </div>
+
+                      <Select
+                        onValueChange={(value) =>
+                          updateFilter(i, "value", value)
+                        }
+                        value={f.value}
+                        disabled={!f.path}
+                      >
+                        <SelectTrigger className="w-full flex-1">
+                          <SelectValue placeholder="Select value..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {valueOptions.map((v) => (
+                            <SelectItem key={v} value={v}>
+                              {v}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
 
                   <Button
                     variant="ghost"
@@ -235,8 +275,6 @@ export default function FilterPage() {
             })}
           </div>
 
-
-          {/* Botão de adicionar filtro */}
           <Button
             variant="outline"
             onClick={addFilter}
@@ -245,7 +283,6 @@ export default function FilterPage() {
             <Plus className="w-4 h-4" /> Add filter
           </Button>
 
-          {/* Info */}
           <p className="text-sm text-muted-foreground mt-4">
             {filters.length
               ? `Showing ${filteredPlants.length} taxa matching selected filters.`
@@ -253,9 +290,9 @@ export default function FilterPage() {
           </p>
         </main>
 
-        {/* Painel direito: imagens */}
+        {/* direita: imagens */}
         <ScrollArea className="border-l border-border flex-1 overflow-auto p-4 dark-scrollbar">
-          <Card className="bg-card text-card-foreground">
+          <Card>
             <CardHeader>
               <CardTitle>Images</CardTitle>
             </CardHeader>
