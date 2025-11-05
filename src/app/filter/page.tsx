@@ -56,6 +56,26 @@ export default function FilterPage() {
       );
   }
 
+  // Função auxiliar para comparar valores convertendo tipos
+  function compareValues(jsonValue: any, filterValue: string): boolean {
+    // Se ambos são strings, compara diretamente
+    if (typeof jsonValue === 'string' && typeof filterValue === 'string') {
+      return jsonValue === filterValue;
+    }
+    
+    // Tenta converter para número para comparação
+    const jsonNum = typeof jsonValue === 'number' ? jsonValue : Number(jsonValue);
+    const filterNum = Number(filterValue);
+    
+    // Se ambos são números válidos, compara numericamente
+    if (!isNaN(jsonNum) && !isNaN(filterNum)) {
+      return jsonNum === filterNum;
+    }
+    
+    // Como fallback, converte ambos para string
+    return String(jsonValue) === String(filterValue);
+  }
+
   function extractPathsByMode(data: any[]): PathData {
     const allPathsSet = new Set<string>();
     const valuePaths: Record<string, Set<string>> = {};
@@ -78,18 +98,23 @@ export default function FilterPage() {
             
             if (isPrimitive) {
               if (!valuePaths[newPath]) valuePaths[newPath] = new Set();
-              if (typeof value === 'string' && value.trim() !== '') {
+              // Para números, mantém como string mas garante formato consistente
+              if (typeof value === 'number') {
                 valuePaths[newPath].add(value.toString());
-              } else if (typeof value !== 'string') {
+              } else if (typeof value === 'string' && value.trim() !== '') {
+                valuePaths[newPath].add(value);
+              } else if (typeof value === 'boolean') {
                 valuePaths[newPath].add(value.toString());
               }
             } 
             else if (isPrimitiveArray) {
               if (!valuePaths[newPath]) valuePaths[newPath] = new Set();
               value.forEach(item => {
-                if (typeof item === 'string' && item.trim() !== '') {
+                if (typeof item === 'number') {
                   valuePaths[newPath].add(item.toString());
-                } else if (typeof item === 'number' || typeof item === 'boolean') {
+                } else if (typeof item === 'string' && item.trim() !== '') {
+                  valuePaths[newPath].add(item);
+                } else if (typeof item === 'boolean') {
                   valuePaths[newPath].add(item.toString());
                 }
               });
@@ -119,7 +144,15 @@ export default function FilterPage() {
         path,
         options: Array.from(set)
           .filter(opt => opt && opt.trim() !== '')
-          .sort()
+          .sort((a, b) => {
+            // Ordenação inteligente: números primeiro, depois strings
+            const numA = Number(a);
+            const numB = Number(b);
+            if (!isNaN(numA) && !isNaN(numB)) {
+              return numA - numB;
+            }
+            return a.localeCompare(b);
+          })
       }))
       .filter(item => item.options.length > 0)
       .sort((a, b) => a.path.localeCompare(b.path));
@@ -187,7 +220,19 @@ export default function FilterPage() {
       activeFilters.every((f) => {
         if (f.mode === "property_value") {
           const value = getByPath(p, f.path);
-          return value === f.value;
+          
+          // Comparação inteligente que converte tipos
+          if (value === null || value === undefined) return false;
+          
+          // Se o valor do JSON é um array, verifica se contém o valor do filtro
+          if (Array.isArray(value)) {
+            return value.some(item => 
+              compareValues(item, f.value)
+            );
+          }
+          
+          // Para valores simples
+          return compareValues(value, f.value);
         } else if (f.mode === "property") {
           return getByPath(p, f.path) !== undefined;
         }
