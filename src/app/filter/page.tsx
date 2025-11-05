@@ -318,17 +318,19 @@ export default function FilterPage() {
                     <div className="flex flex-col gap-2">
                       <p className="text-xs text-muted-foreground">Search property path</p>
                       
-                      {/* Selector com busca para Property */}
+                      {/* Selector com busca para Property - CORRIGIDO */}
                       <Select
                         open={openPropertySearch === i}
                         onOpenChange={(open) => setOpenPropertySearch(open ? i : null)}
-                        value={f.path}
+                        value={f.path} // Agora usa o value corretamente
                         onValueChange={(value) => handlePropertyInputChange(i, value)}
                       >
                         <SelectTrigger className="w-full text-sm">
                           <div className="flex items-center gap-2">
                             <Search className="w-4 h-4 text-muted-foreground" />
-                            <SelectValue placeholder="Search property path..." />
+                            <SelectValue>
+                              {f.path || "Search property path..."}
+                            </SelectValue>
                           </div>
                         </SelectTrigger>
                         <SelectContent className="max-h-[300px] overflow-auto">
@@ -337,6 +339,7 @@ export default function FilterPage() {
                               <CommandInput 
                                 placeholder="Search property..." 
                                 className="h-9"
+                                value={propertySearch}
                                 onValueChange={(value) => setPropertySearch(value)}
                               />
                               <CommandList className="max-h-[240px]">
@@ -350,8 +353,8 @@ export default function FilterPage() {
                                     <CommandItem
                                       key={sp.path}
                                       value={sp.path}
-                                      onSelect={() => {
-                                        handlePropertyInputChange(i, sp.path);
+                                      onSelect={(currentValue) => {
+                                        handlePropertyInputChange(i, currentValue);
                                       }}
                                       className="text-xs py-1"
                                     >
@@ -393,6 +396,7 @@ export default function FilterPage() {
                               <CommandInput 
                                 placeholder="Search property..." 
                                 className="h-9"
+                                value={propertySearch}
                                 onValueChange={(value) => setPropertySearch(value)}
                               />
                               <CommandList className="max-h-[240px]">
@@ -406,8 +410,8 @@ export default function FilterPage() {
                                     <CommandItem
                                       key={sp.path}
                                       value={sp.path}
-                                      onSelect={() => {
-                                        updateFilter(i, "path", sp.path);
+                                      onSelect={(currentValue) => {
+                                        updateFilter(i, "path", currentValue);
                                         setOpenPropertySelect(null);
                                         setPropertySearch("");
                                       }}
