@@ -45,6 +45,9 @@ export default function FilterPage() {
   });
   const [filters, setFilters] = useState<Filter[]>([]);
   const [filteredPlants, setFilteredPlants] = useState<any[]>([]);
+  const [filteredImages, setFilteredImages] = useState<
+    { path: string; url: string; legend?: string; specificEpithet?: string }[]
+  >([]);
   const [propertySearch, setPropertySearch] = useState<string>("");
   const [openPropertySelect, setOpenPropertySelect] = useState<number | null>(null);
   const [openPropertySearch, setOpenPropertySearch] = useState<number | null>(null);
@@ -225,6 +228,40 @@ export default function FilterPage() {
     );
   }
 
+  // ---------- Função para filtrar imagens com base nos filtros ativos ----------
+  function filterImages(plants: any[], activeFilters: Filter[]) {
+    if (activeFilters.length === 0) {
+      return allImages;
+    }
+
+    const filtered = allImages.filter(img => {
+      // Encontra a planta correspondente a esta imagem
+      const plant = plants.find(p => p.specificEpithet === img.specificEpithet);
+      if (!plant) return false;
+
+      // Aplica os mesmos filtros à planta
+      return activeFilters.every((f) => {
+        if (f.mode === "property_value") {
+          const value = getByPath(plant, f.path);
+          
+          if (value === null || value === undefined) return false;
+          
+          if (Array.isArray(value)) {
+            return value.some(item => compareValues(item, f.value));
+          }
+          
+          return compareValues(value, f.value);
+        } else if (f.mode === "property") {
+          return getByPath(plant, f.path) !== undefined;
+        }
+        return true;
+      });
+    });
+
+    console.log(`Filtradas ${filtered.length} imagens de ${allImages.length} totais`);
+    return filtered;
+  }
+
   useEffect(() => {
     fetch("/TTS-Mimosa-App/data/MimosaDB.json")
       .then((res) => {
@@ -246,7 +283,6 @@ export default function FilterPage() {
         const all = data.flatMap((plant: any) => {
           const images = extractImagesWithPaths(plant);
           console.log(`Planta ${plant.specificEpithet}: ${images.length} imagens encontradas`);
-          images.forEach(img => console.log("URL da imagem:", img.url));
           return images.map((img) => ({
             ...img,
             specificEpithet: plant.specificEpithet,
@@ -254,6 +290,7 @@ export default function FilterPage() {
         });
         console.log("Total de imagens extraídas:", all.length);
         setAllImages(all);
+        setFilteredImages(all);
       })
       .catch((error) => {
         console.error("Error loading data:", error);
@@ -264,11 +301,11 @@ export default function FilterPage() {
   const closeModal = () => setModalIndex(null);
   const showPrev = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setModalIndex((prev) => (prev! > 0 ? prev! - 1 : allImages.length - 1));
+    setModalIndex((prev) => (prev! > 0 ? prev! - 1 : filteredImages.length - 1));
   };
   const showNext = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setModalIndex((prev) => (prev! < allImages.length - 1 ? prev! + 1 : 0));
+    setModalIndex((prev) => (prev! < filteredImages.length - 1 ? prev! + 1 : 0));
   };
 
   useEffect(() => {
@@ -279,38 +316,30 @@ export default function FilterPage() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [allImages.length]);
+  }, [filteredImages.length]);
 
-  // aplicar filtros
+  // aplicar filtros às plantas E às imagens
   useEffect(() => {
-    if (filters.length === 0) {
-      setFilteredPlants(plants);
-      return;
-    }
-
     const activeFilters = filters.filter(f => f.enabled);
 
     if (activeFilters.length === 0) {
       setFilteredPlants(plants);
+      setFilteredImages(allImages);
       return;
     }
 
+    // Filtra plantas
     const filtered = plants.filter((p) =>
       activeFilters.every((f) => {
         if (f.mode === "property_value") {
           const value = getByPath(p, f.path);
           
-          // Comparação inteligente que converte tipos
           if (value === null || value === undefined) return false;
           
-          // Se o valor do JSON é um array, verifica se contém o valor do filtro
           if (Array.isArray(value)) {
-            return value.some(item => 
-              compareValues(item, f.value)
-            );
+            return value.some(item => compareValues(item, f.value));
           }
           
-          // Para valores simples
           return compareValues(value, f.value);
         } else if (f.mode === "property") {
           return getByPath(p, f.path) !== undefined;
@@ -318,8 +347,14 @@ export default function FilterPage() {
         return true;
       })
     );
+
     setFilteredPlants(filtered);
-  }, [filters, plants]);
+    
+    // Filtra imagens baseado nas plantas filtradas
+    const filteredImgs = filterImages(filtered, activeFilters);
+    setFilteredImages(filteredImgs);
+
+  }, [filters, plants, allImages]);
 
   const addFilter = () => {
     setFilters([...filters, { mode: "property", path: "", value: "", enabled: true }]);
@@ -609,92 +644,77 @@ export default function FilterPage() {
 
           <p className="text-sm text-muted-foreground mt-4">
             {filters.some(f => f.enabled)
-              ? `Showing ${filteredPlants.length} taxa matching active filters.`
+              ? `Showing ${filteredPlants.length} taxa and ${filteredImages.length} images matching active filters.`
               : filters.length
-                ? "All filters are disabled. Showing all taxa."
-                : "Add filters to narrow down taxa."}
+                ? "All filters are disabled. Showing all taxa and images."
+                : "Add filters to narrow down taxa and images."}
           </p>
         </main>
 
-        {/* Painel direito com imagens - CORRIGIDO */}
+        {/* Painel direito com imagens FILTRADAS */}
         <ScrollArea className="border-l border-border flex-1 overflow-auto p-4 dark-scrollbar">
           <Card className="bg-card text-card-foreground">
             <CardHeader>
-              <CardTitle>Images ({filteredPlants.flatMap(p => extractImagesWithPaths(p)).length})</CardTitle>
+              <CardTitle>Images ({filteredImages.length})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {filteredPlants.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No matches.</p>
+              {filteredImages.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No images match the current filters.</p>
               ) : (
-                filteredPlants.flatMap((p, idx) => {
-                  const imgs = extractImagesWithPaths(p);
-                  return imgs.length > 0 ? (
-                    <div key={idx} className="space-y-3 p-3 border rounded-lg bg-muted/10">
-                      <p className="text-sm text-primary italic text-center font-medium">
-                        Mimosa {p.specificEpithet}
-                      </p>
-                      {imgs.map((img, j) => (
-                        <div key={j} className="space-y-2">
-                          <p
-                            className="text-xs text-muted-foreground font-mono whitespace-normal break-words bg-muted p-1 rounded"
-                            title={img.path}
-                          >
-                            {renderPathGrouped(img.path, 3)}
-                          </p>
-                          <div
-                            className="bg-muted rounded overflow-hidden cursor-pointer flex justify-center hover:opacity-90 transition-opacity min-h-[150px] items-center"
-                            onClick={() => {
-                              // Encontrar o índice global desta imagem
-                              const globalIndex = allImages.findIndex(
-                                globalImg => 
-                                  globalImg.url === img.url && 
-                                  globalImg.specificEpithet === p.specificEpithet
-                              );
-                              setModalIndex(globalIndex !== -1 ? globalIndex : 0);
-                            }}
-                          >
-                            <Image
-                              src={img.url}
-                              alt={img.legend || `Image of Mimosa ${p.specificEpithet}`}
-                              width={260}
-                              height={180}
-                              className="rounded-md border border-border object-contain max-h-48"
-                              loading="eager"
-                              priority={j < 2}
-                              onError={(e) => {
-                                console.error("Erro ao carregar imagem:", img.url);
-                                const target = e.currentTarget;
-                                target.style.display = 'none';
-                                const parent = target.parentElement;
-                                if (parent) {
-                                  parent.innerHTML = `
-                                    <div class="w-full h-32 flex items-center justify-center bg-red-50 border border-red-200 rounded">
-                                      <span class="text-red-500 text-sm">Failed to load image</span>
-                                    </div>
-                                  `;
-                                }
-                              }}
-                              onLoad={() => console.log("Imagem carregada com sucesso:", img.url)}
-                            />
-                          </div>
-                          {img.legend && (
-                            <p className="text-xs text-muted-foreground italic text-center">
-                              {img.legend}
-                            </p>
-                          )}
-                        </div>
-                      ))}
+                filteredImages.map((img, idx) => (
+                  <div key={idx} className="space-y-2 p-3 border rounded-lg bg-muted/10">
+                    <p className="text-sm text-primary italic text-center font-medium">
+                      Mimosa {img.specificEpithet}
+                    </p>
+                    <p
+                      className="text-xs text-muted-foreground font-mono whitespace-normal break-words bg-muted p-1 rounded"
+                      title={img.path}
+                    >
+                      {renderPathGrouped(img.path, 3)}
+                    </p>
+                    <div
+                      className="bg-muted rounded overflow-hidden cursor-pointer flex justify-center hover:opacity-90 transition-opacity min-h-[150px] items-center"
+                      onClick={() => setModalIndex(idx)}
+                    >
+                      <Image
+                        src={img.url}
+                        alt={img.legend || `Image of Mimosa ${img.specificEpithet}`}
+                        width={260}
+                        height={180}
+                        className="rounded-md border border-border object-contain max-h-48"
+                        loading="eager"
+                        priority={idx < 3}
+                        onError={(e) => {
+                          console.error("Erro ao carregar imagem:", img.url);
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="w-full h-32 flex items-center justify-center bg-red-50 border border-red-200 rounded">
+                                <span class="text-red-500 text-sm">Failed to load image</span>
+                              </div>
+                            `;
+                          }
+                        }}
+                        onLoad={() => console.log("Imagem carregada com sucesso:", img.url)}
+                      />
                     </div>
-                  ) : null;
-                })
+                    {img.legend && (
+                      <p className="text-xs text-muted-foreground italic text-center">
+                        {img.legend}
+                      </p>
+                    )}
+                  </div>
+                ))
               )}
             </CardContent>
           </Card>
         </ScrollArea>
       </div>
 
-      {/* 🖼️ Modal de imagem (igual da página principal) */}
-      {modalIndex !== null && allImages[modalIndex] && (
+      {/* 🖼️ Modal de imagem (usando filteredImages) */}
+      {modalIndex !== null && filteredImages[modalIndex] && (
         <div
           className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center"
           onClick={closeModal}
@@ -715,15 +735,15 @@ export default function FilterPage() {
 
           <div className="max-w-[90vw] max-h-[80vh] flex flex-col items-center">
             <Image
-              src={allImages[modalIndex].url}
-              alt={allImages[modalIndex].legend || `Image ${modalIndex + 1}`}
+              src={filteredImages[modalIndex].url}
+              alt={filteredImages[modalIndex].legend || `Image ${modalIndex + 1}`}
               width={1200}
               height={900}
               className="object-contain max-h-[80vh]"
               loading="eager"
               priority
               onError={(e) => {
-                console.error("Erro ao carregar imagem no modal:", allImages[modalIndex].url);
+                console.error("Erro ao carregar imagem no modal:", filteredImages[modalIndex].url);
                 const target = e.currentTarget;
                 target.style.display = 'none';
                 const container = target.parentElement;
@@ -736,14 +756,14 @@ export default function FilterPage() {
                 }
               }}
             />
-            {allImages[modalIndex].legend && (
+            {filteredImages[modalIndex].legend && (
               <p className="text-sm text-muted-foreground italic mt-2 text-center text-white">
-                {allImages[modalIndex].legend}
+                {filteredImages[modalIndex].legend}
               </p>
             )}
-            {allImages[modalIndex].specificEpithet && (
+            {filteredImages[modalIndex].specificEpithet && (
               <p className="text-sm text-white italic mt-1">
-                Mimosa {allImages[modalIndex].specificEpithet}
+                Mimosa {filteredImages[modalIndex].specificEpithet}
               </p>
             )}
           </div>
@@ -756,7 +776,7 @@ export default function FilterPage() {
           </button>
 
           <div className="absolute bottom-4 text-white text-sm">
-            {modalIndex + 1} / {allImages.length}
+            {modalIndex + 1} / {filteredImages.length}
           </div>
         </div>
       )}
