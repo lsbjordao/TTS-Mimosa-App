@@ -30,40 +30,85 @@ const JSONGrid = dynamic(() => import("@redheadphone/react-json-grid"), {
   ssr: false,
 });
 
-// ---------- Função auxiliar: extrai imagens ----------
-function extractImagesWithPaths(obj: any, path: string[] = []): { path: string; url: string; legend?: string }[] {
-  let results: { path: string; url: string; legend?: string }[] = [];
+// ---------- Função auxiliar MELHORADA: extrai imagens ----------
+function extractImagesWithPaths(obj: any, currentPath: string[] = []): { path: string; url: string; legend?: string }[] {
+  const results: { path: string; url: string; legend?: string }[] = [];
   
   if (!obj || typeof obj !== 'object') return results;
-  
+
+  // Se é um array, processa cada item
   if (Array.isArray(obj)) {
-    obj.forEach((item, i) =>
-      results.push(...extractImagesWithPaths(item, [...path, `[${i}]`]))
-    );
-  } else {
-    let url, legend;
-    
-    // Verifica se este objeto tem imageUrl
-    if (obj.imageUrl && typeof obj.imageUrl === 'string') {
-      url = obj.imageUrl;
-      legend = obj.imageUrlLegend || obj.legend || undefined;
-      
-      if (url) {
-        results.push({ 
-          path: path.join(".") || "root", 
-          url, 
-          legend 
-        });
-      }
+    obj.forEach((item, index) => {
+      results.push(...extractImagesWithPaths(item, [...currentPath, `[${index}]`]));
+    });
+    return results;
+  }
+
+  // Verifica se este objeto tem propriedades de imagem
+  const imageKeys = Object.keys(obj).filter(key => 
+    key.toLowerCase().includes('image') || 
+    key.toLowerCase().includes('url') ||
+    key.toLowerCase().includes('photo')
+  );
+
+  // Log para debug - mostra as chaves que podem conter imagens
+  if (imageKeys.length > 0 && currentPath.length < 3) { // Limita logs para não poluir muito
+    console.log(`Encontradas chaves de imagem em ${currentPath.join('.')}:`, imageKeys);
+  }
+
+  // Procura por URLs de imagem em várias possíveis propriedades
+  let imageUrl: string | undefined;
+  let legend: string | undefined;
+
+  // Verifica várias possíveis propriedades de imagem
+  if (obj.imageUrl && typeof obj.imageUrl === 'string') {
+    imageUrl = obj.imageUrl;
+  } else if (obj.url && typeof obj.url === 'string' && obj.url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+    imageUrl = obj.url;
+  } else if (obj.src && typeof obj.src === 'string' && obj.src.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+    imageUrl = obj.src;
+  } else if (obj.photo && typeof obj.photo === 'string' && obj.photo.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+    imageUrl = obj.photo;
+  }
+
+  // Verifica várias possíveis propriedades de legenda
+  if (obj.imageUrlLegend && typeof obj.imageUrlLegend === 'string') {
+    legend = obj.imageUrlLegend;
+  } else if (obj.legend && typeof obj.legend === 'string') {
+    legend = obj.legend;
+  } else if (obj.caption && typeof obj.caption === 'string') {
+    legend = obj.caption;
+  } else if (obj.description && typeof obj.description === 'string') {
+    legend = obj.description;
+  }
+
+  // Se encontrou uma imagem, adiciona aos resultados
+  if (imageUrl) {
+    const path = currentPath.join('.') || 'root';
+    console.log(`✅ Imagem encontrada: ${imageUrl} em ${path}`);
+    results.push({
+      path,
+      url: imageUrl,
+      legend
+    });
+  }
+
+  // Continua procurando em outras propriedades (exceto as que já verificamos)
+  for (const [key, value] of Object.entries(obj)) {
+    // Pula propriedades que já verificamos para imagens
+    if ([
+      'imageUrl', 'url', 'src', 'photo', 
+      'imageUrlLegend', 'legend', 'caption', 'description'
+    ].includes(key)) {
+      continue;
     }
-    
-    // Continua procurando em outras propriedades
-    for (const [key, value] of Object.entries(obj)) {
-      if (key !== "imageUrl" && key !== "imageUrlLegend" && key !== "legend") {
-        results.push(...extractImagesWithPaths(value, [...path, key]));
-      }
+
+    // Se o valor é um objeto ou array, continua a busca recursiva
+    if (value && typeof value === 'object') {
+      results.push(...extractImagesWithPaths(value, [...currentPath, key]));
     }
   }
+
   return results;
 }
 
@@ -147,17 +192,35 @@ export default function Home() {
         console.log("Dados carregados:", data.length, "plantas");
         setPlants(data);
 
-        // Extrai todas as imagens globais
+        // Extrai todas as imagens globais - COM MAIS LOGS PARA DEBUG
+        console.log("Iniciando extração de imagens...");
         const all = data.flatMap((plant: any) => {
           const images = extractImagesWithPaths(plant);
-          console.log(`Planta ${plant.specificEpithet}: ${images.length} imagens encontradas`);
-          images.forEach(img => console.log("URL da imagem:", img.url));
+          if (images.length > 0) {
+            console.log(`✅ Planta ${plant.specificEpithet}: ${images.length} imagens encontradas`);
+            images.forEach(img => console.log(`   📷 ${img.url}`));
+          } else {
+            console.log(`❌ Planta ${plant.specificEpithet}: NENHUMA imagem encontrada`);
+            // Log da estrutura da planta para debug (apenas para as primeiras 3 plantas sem imagens)
+            if (data.indexOf(plant) < 3) {
+              console.log("Estrutura da planta:", Object.keys(plant));
+            }
+          }
           return images.map((img) => ({
             ...img,
             specificEpithet: plant.specificEpithet,
           }));
         });
-        console.log("Total de imagens extraídas:", all.length);
+        
+        console.log("🚀 Total de imagens extraídas:", all.length);
+        if (all.length === 0) {
+          console.log("❌ NENHUMA IMAGEM ENCONTRADA! Verificando estrutura do JSON...");
+          // Examina algumas plantas para ver a estrutura
+          data.slice(0, 3).forEach((plant: any, index: number) => {
+            console.log(`Estrutura da planta ${index + 1} (${plant.specificEpithet}):`, JSON.stringify(plant, null, 2).substring(0, 500) + "...");
+          });
+        }
+        
         setAllImages(all);
       })
       .catch((error) => {
@@ -464,20 +527,18 @@ export default function Home() {
                       className="bg-muted rounded overflow-hidden cursor-pointer flex justify-center hover:opacity-90 transition-opacity min-h-[150px] items-center"
                       onClick={() => setModalIndex(idx)}
                     >
-                      {/* IMAGEM COM LOADING PRIORITÁRIO */}
                       <Image
                         src={img.url}
                         alt={img.legend || `Image ${idx + 1}`}
                         width={280}
                         height={200}
                         className="h-auto max-h-48 object-contain"
-                        loading="eager" // FORÇA CARREGAMENTO IMEDIATO
-                        priority={idx < 3} // PRIORIZA AS PRIMEIRAS IMAGENS
+                        loading="eager"
+                        priority={idx < 3}
                         onError={(e) => {
                           console.error("Erro ao carregar imagem:", img.url);
                           const target = e.currentTarget;
                           target.style.display = 'none';
-                          // Mostra fallback
                           const parent = target.parentElement;
                           if (parent) {
                             parent.innerHTML = `
@@ -487,7 +548,6 @@ export default function Home() {
                             `;
                           }
                         }}
-                        onLoad={() => console.log("Imagem carregada com sucesso:", img.url)}
                       />
                     </div>
                     {img.legend && (
@@ -537,13 +597,12 @@ export default function Home() {
               width={1200}
               height={900}
               className="object-contain max-h-[80vh]"
-              loading="eager" // FORÇA CARREGAMENTO IMEDIATO NO MODAL
-              priority // MÁXIMA PRIORIDADE
+              loading="eager"
+              priority
               onError={(e) => {
                 console.error("Erro ao carregar imagem no modal:", images[modalIndex].url);
                 const target = e.currentTarget;
                 target.style.display = 'none';
-                // Fallback no modal
                 const container = target.parentElement;
                 if (container) {
                   container.innerHTML = `
