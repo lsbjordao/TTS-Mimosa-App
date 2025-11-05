@@ -13,8 +13,7 @@ import {
   BookOpenText,
   FileText,
   ChartPie,
-  Funnel,
-  TestTube
+  Funnel
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,13 +25,12 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 const JSONGrid = dynamic(() => import("@redheadphone/react-json-grid"), {
   ssr: false,
 });
 
-// ---------- Função auxiliar: extrai imagens (versão original que funcionava) ----------
+// ---------- Função auxiliar: extrai imagens ----------
 function extractImagesWithPaths(obj: any, path: string[] = []) {
   let results: { path: string; url: string; legend?: string }[] = [];
   if (Array.isArray(obj)) {
@@ -98,84 +96,6 @@ function searchInJSON(
   return results;
 }
 
-// ---------- Função de TESTE: analisa estrutura completa de uma planta ----------
-function analyzePlantStructure(plant: any, plantName: string) {
-  console.log(`🔍 ANALISANDO ESTRUTURA DA PLANTA: ${plantName}`);
-  
-  // Função recursiva para encontrar todas as propriedades
-  function findAllProperties(obj: any, currentPath: string[] = []): { path: string; value: any; type: string }[] {
-    const results: { path: string; value: any; type: string }[] = [];
-    
-    if (!obj || typeof obj !== 'object') return results;
-    
-    if (Array.isArray(obj)) {
-      obj.forEach((item, i) => {
-        results.push(...findAllProperties(item, [...currentPath, `[${i}]`]));
-      });
-    } else {
-      // Adiciona informações sobre este objeto
-      results.push({
-        path: currentPath.join('.') || 'root',
-        value: Object.keys(obj),
-        type: 'object_keys'
-      });
-      
-      // Verifica propriedades específicas de imagem
-      const imageProps = ['imageUrl', 'url', 'src', 'photo', 'image', 'img'];
-      imageProps.forEach(prop => {
-        if (obj[prop] && typeof obj[prop] === 'string') {
-          results.push({
-            path: [...currentPath, prop].join('.'),
-            value: obj[prop],
-            type: 'image_url'
-          });
-        }
-      });
-      
-      // Continua a busca recursiva
-      for (const [key, value] of Object.entries(obj)) {
-        if (value && typeof value === 'object') {
-          results.push(...findAllProperties(value, [...currentPath, key]));
-        }
-      }
-    }
-    
-    return results;
-  }
-  
-  const allProps = findAllProperties(plant);
-  
-  // Filtra apenas propriedades relevantes
-  const imageUrls = allProps.filter(p => p.type === 'image_url');
-  const objectsWithKeys = allProps.filter(p => p.type === 'object_keys');
-  
-  console.log(`📊 RESUMO PARA ${plantName}:`);
-  console.log(`   - Total de propriedades analisadas: ${allProps.length}`);
-  console.log(`   - URLs de imagem encontradas: ${imageUrls.length}`);
-  console.log(`   - Objetos com chaves: ${objectsWithKeys.length}`);
-  
-  if (imageUrls.length > 0) {
-    console.log('   🖼️ URLs DE IMAGEM ENCONTRADAS:');
-    imageUrls.forEach(img => {
-      console.log(`     📍 ${img.path}: ${img.value}`);
-    });
-  } else {
-    console.log('   ❌ NENHUMA URL DE IMAGEM ENCONTRADA');
-  }
-  
-  // Mostra alguns objetos para debug
-  console.log('   🏗️ ESTRUTURA DOS PRIMEIROS OBJETOS:');
-  objectsWithKeys.slice(0, 5).forEach(obj => {
-    console.log(`     📂 ${obj.path}: [${obj.value.join(', ')}]`);
-  });
-  
-  return {
-    imageUrls,
-    objectsWithKeys,
-    totalProps: allProps.length
-  };
-}
-
 export default function Home() {
   const [plants, setPlants] = useState<any[]>([]);
   const [selected, setSelected] = useState<any | null>(null);
@@ -196,105 +116,21 @@ export default function Home() {
     { path: string; url: string; legend?: string; specificEpithet?: string }[]
   >([]);
 
-  const [debugMode, setDebugMode] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
-
-  // ---------- Função de TESTE: analisa algumas plantas ----------
-  const runImageExtractionTest = () => {
-    console.clear();
-    console.log("🧪 INICIANDO TESTE DE EXTRAÇÃO DE IMAGENS");
-    setDebugInfo(prev => [...prev, "🧪 INICIANDO TESTE DE EXTRAÇÃO DE IMAGENS"]);
-    
-    if (plants.length === 0) {
-      console.log("❌ Nenhuma planta carregada para teste");
-      setDebugInfo(prev => [...prev, "❌ Nenhuma planta carregada para teste"]);
-      return;
-    }
-    
-    // Testa as primeiras 5 plantas
-    const testPlants = plants.slice(0, 5);
-    
-    testPlants.forEach((plant, index) => {
-      const plantName = plant.specificEpithet || `Planta ${index + 1}`;
-      console.log(`\n--- TESTANDO ${plantName} ---`);
-      setDebugInfo(prev => [...prev, `\n--- TESTANDO ${plantName} ---`]);
-      
-      // 1. Usa a função original de extração
-      const extractedImages = extractImagesWithPaths(plant);
-      console.log(`📸 Função extractImagesWithPaths encontrou: ${extractedImages.length} imagens`);
-      setDebugInfo(prev => [...prev, `📸 Função extractImagesWithPaths encontrou: ${extractedImages.length} imagens`]);
-      
-      extractedImages.forEach(img => {
-        console.log(`   ✅ ${img.path} → ${img.url}`);
-        setDebugInfo(prev => [...prev, `   ✅ ${img.path} → ${img.url}`]);
-      });
-      
-      // 2. Analisa a estrutura completa
-      const analysis = analyzePlantStructure(plant, plantName);
-      setDebugInfo(prev => [...prev, `   📊 URLs encontradas na análise: ${analysis.imageUrls.length}`]);
-      
-      if (extractedImages.length === 0 && analysis.imageUrls.length > 0) {
-        console.log("   ⚠️  CONFLITO: Análise encontrou URLs mas extractImagesWithPaths não!");
-        setDebugInfo(prev => [...prev, "   ⚠️  CONFLITO: Análise encontrou URLs mas extractImagesWithPaths não!"]);
-      }
-    });
-    
-    // Teste geral
-    console.log("\n--- RESUMO GERAL ---");
-    setDebugInfo(prev => [...prev, "\n--- RESUMO GERAL ---"]);
-    
-    const totalExtracted = plants.flatMap(p => extractImagesWithPaths(p)).length;
-    console.log(`🖼️ Total de imagens extraídas de todas as plantas: ${totalExtracted}`);
-    setDebugInfo(prev => [...prev, `🖼️ Total de imagens extraídas de todas as plantas: ${totalExtracted}`]);
-    
-    // Verifica se há imagens no allImages
-    console.log(`📁 Imagens em allImages: ${allImages.length}`);
-    setDebugInfo(prev => [...prev, `📁 Imagens em allImages: ${allImages.length}`]);
-  };
-
   // ---------- Carrega dados ----------
   useEffect(() => {
     fetch("/TTS-Mimosa-App/data/MimosaDB.json")
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
-        console.log("📦 Dados carregados:", data.length, "plantas");
         setPlants(data);
 
         // Extrai todas as imagens globais
-        console.log("🖼️ Iniciando extração de imagens...");
-        const all = data.flatMap((plant: any) => {
-          const images = extractImagesWithPaths(plant);
-          if (images.length > 0) {
-            console.log(`✅ ${plant.specificEpithet}: ${images.length} imagens`);
-          } else {
-            console.log(`❌ ${plant.specificEpithet}: NENHUMA imagem`);
-          }
-          return images.map((img) => ({
+        const all = data.flatMap((plant: any) =>
+          extractImagesWithPaths(plant).map((img) => ({
             ...img,
             specificEpithet: plant.specificEpithet,
-          }));
-        });
-        
-        console.log("🎯 Total de imagens extraídas:", all.length);
+          }))
+        );
         setAllImages(all);
-        
-        // Log detalhado das primeiras imagens
-        if (all.length > 0) {
-          console.log("📸 Primeiras 3 imagens encontradas:");
-          all.slice(0, 3).forEach((img: any, i: any) => {
-            console.log(`   ${i + 1}. ${img.specificEpithet} - ${img.path} → ${img.url}`);
-          });
-        } else {
-          console.log("🚨 NENHUMA IMAGEM ENCONTRADA NO DATASET!");
-        }
-      })
-      .catch((error) => {
-        console.error("Error loading data:", error);
       });
   }, []);
 
@@ -402,18 +238,6 @@ export default function Home() {
             <Funnel className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
           </Link>
 
-          {/* Botão de TESTE */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={runImageExtractionTest}
-            className="flex items-center gap-1"
-            title="Run image extraction test"
-          >
-            <TestTube className="w-4 h-4" />
-            Test Images
-          </Button>
-
           <Search className="w-5 h-5 text-muted-foreground" />
           <Input
             type="text"
@@ -436,6 +260,7 @@ export default function Home() {
               <div className="flex flex-col gap-3">
                 <h4 className="font-medium text-sm mb-1">Search settings</h4>
 
+                {/* 🔍 Limite de resultados */}
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">Result limit:</label>
                   <select
@@ -453,6 +278,7 @@ export default function Home() {
                   </select>
                 </div>
 
+                {/* ✅ Checkboxes de busca */}
                 <div className="flex flex-col gap-1 mt-2">
                   <label className="text-xs text-muted-foreground">Search in:</label>
 
@@ -506,7 +332,7 @@ export default function Home() {
                 className="w-full text-left px-2 py-1 hover:bg-muted border-b border-border last:border-none flex justify-between items-center"
               >
                 <div>
-                  <p className="text-sm font-mono wrap-break-word text-primary">
+                  <p className="text-sm font-mono break-words text-primary">
                     {r.path}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
@@ -520,28 +346,6 @@ export default function Home() {
             ))}
           </div>
         )}
-
-        {/* Painel de DEBUG */}
-        {debugMode && debugInfo.length > 0 && (
-          <div className="border border-yellow-500 rounded-md bg-yellow-50 mt-1 max-h-48 overflow-auto p-2">
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="font-medium text-sm text-yellow-800">Debug Info</h4>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDebugInfo([])}
-                className="h-6 text-xs"
-              >
-                Clear
-              </Button>
-            </div>
-            {debugInfo.map((info, i) => (
-              <pre key={i} className="text-xs text-yellow-700 whitespace-pre-wrap">
-                {info}
-              </pre>
-            ))}
-          </div>
-        )}
       </header>
 
       {/* 🧩 Corpo principal */}
@@ -550,7 +354,7 @@ export default function Home() {
         <ScrollArea className="border-r border-border p-3 h-full overflow-auto dark-scrollbar">
           <Card className="bg-card text-card-foreground">
             <CardHeader>
-              <CardTitle>Taxon ({plants.length})</CardTitle>
+              <CardTitle>Taxon</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1">
               {plants.map((p, i) => (
@@ -620,7 +424,7 @@ export default function Home() {
                       </p>
                     )}
                     <p
-                      className="text-xs text-muted-foreground font-mono whitespace-normal wrap-break-word bg-muted p-1 rounded"
+                      className="text-xs text-muted-foreground font-mono whitespace-normal break-words bg-muted p-1 rounded"
                       title={img.path}
                     >
                       {renderPathGrouped(img.path, 3)}
@@ -638,19 +442,17 @@ export default function Home() {
                         loading="eager"
                         priority={idx < 3}
                         onError={(e) => {
-                          console.error("❌ Erro ao carregar imagem:", img.url);
                           const target = e.currentTarget;
                           target.style.display = 'none';
                           const parent = target.parentElement;
                           if (parent) {
                             parent.innerHTML = `
                               <div class="w-full h-32 flex items-center justify-center bg-red-50 border border-red-200 rounded">
-                                <span class="text-red-500 text-sm">Failed to load: ${img.url}</span>
+                                <span class="text-red-500 text-sm">Failed to load image</span>
                               </div>
                             `;
                           }
                         }}
-                        onLoad={() => console.log("✅ Imagem carregada:", img.url)}
                       />
                     </div>
                     {img.legend && (
@@ -666,16 +468,6 @@ export default function Home() {
                   <p className="text-xs text-muted-foreground mt-1">
                     {plants.length > 0 ? "Select a taxon to see images" : "Loading data..."}
                   </p>
-                  {allImages.length === 0 && plants.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={runImageExtractionTest}
-                      className="mt-2"
-                    >
-                      Debug Image Extraction
-                    </Button>
-                  )}
                 </div>
               )}
             </CardContent>
@@ -713,21 +505,20 @@ export default function Home() {
               loading="eager"
               priority
               onError={(e) => {
-                console.error("❌ Erro no modal:", images[modalIndex].url);
                 const target = e.currentTarget;
                 target.style.display = 'none';
                 const container = target.parentElement;
                 if (container) {
                   container.innerHTML = `
                     <div class="w-64 h-64 flex items-center justify-center bg-red-100 border-2 border-red-300 rounded">
-                      <span class="text-red-600 font-medium">Failed: ${images[modalIndex].url}</span>
+                      <span class="text-red-600 font-medium">Image failed to load</span>
                     </div>
                   `;
                 }
               }}
             />
             {images[modalIndex].legend && (
-              <p className="text-sm text-muted-foreground italic mt-2 text-center">
+              <p className="text-sm text-muted-foreground italic mt-2 text-center text-white">
                 {images[modalIndex].legend}
               </p>
             )}
