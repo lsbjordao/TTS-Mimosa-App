@@ -52,7 +52,7 @@ export default function Header() {
           className="flex items-center justify-center hover:text-primary transition-colors"
           title="Analytics"
         >
-          <ChartPie className="w-5 h-5 text-muted-foreground" />
+          <ChartPie className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
         </Link>
 
         <Link
