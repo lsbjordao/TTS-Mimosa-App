@@ -1,3 +1,4 @@
+// ./src/app/filter/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -5,11 +6,6 @@ import Header from "./header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
 import {
   Command,
   CommandInput,
@@ -25,9 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Plus, ChevronsUpDown, Check } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 
 interface Filter {
   path: string;
@@ -108,6 +103,7 @@ export default function FilterPage() {
         setPlants(data);
         setStringPaths(extractStringPaths(data));
 
+        // Extrai imagens globais
         const all = data.flatMap((plant: any) =>
           extractImagesWithPaths(plant).map((img) => ({
             ...img,
@@ -146,19 +142,21 @@ export default function FilterPage() {
   const updateFilter = (index: number, field: "path" | "value", value: string) => {
     const newFilters = [...filters];
     newFilters[index][field] = value;
-    if (field === "path") newFilters[index].value = "";
+    if (field === "path") newFilters[index].value = ""; // reseta valor quando muda path
     setFilters(newFilters);
   };
 
   // ---------- Renderização ----------
   return (
     <div className="w-full h-screen flex flex-col bg-background text-foreground overflow-hidden">
+      {/* Header fixo */}
       <div className="sticky top-0 z-10 bg-background border-b border-border">
         <Header />
       </div>
 
+      {/* Corpo dividido em 3 colunas */}
       <div className="grid grid-cols-[300px_1fr_300px] flex-1 min-h-0">
-        {/* Coluna esquerda */}
+        {/* Lista de táxons à esquerda */}
         <ScrollArea className="border-r border-border flex-1 overflow-auto p-4 dark-scrollbar">
           <Card className="bg-card text-card-foreground">
             <CardHeader>
@@ -174,62 +172,39 @@ export default function FilterPage() {
           </Card>
         </ScrollArea>
 
-        {/* Coluna central */}
+        {/* Área central: filtros */}
         <main className="p-6 overflow-auto dark-scrollbar space-y-4">
           <h2 className="text-lg font-semibold">Filtering</h2>
 
+          {/* Campos de filtros */}
           <div className="space-y-3">
             {filters.map((f, i) => {
               const selectedPath = stringPaths.find((sp) => sp.path === f.path);
               const valueOptions = selectedPath?.options || [];
 
-              const [open, setOpen] = useState(false);
-
               return (
                 <div key={i} className="flex items-center gap-2">
-                  {/* Combobox pesquisável */}
-                  <Popover open={open} onOpenChange={setOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={open}
-                        className="w-full justify-between"
-                      >
-                        {f.path ? f.path : "Select field..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[400px] p-0 max-h-[300px] overflow-auto">
-                      <Command>
-                        <CommandInput placeholder="Search field..." />
-                        <CommandList>
-                          <CommandEmpty>No results found.</CommandEmpty>
-                          <CommandGroup>
-                            {stringPaths.map((sp) => (
-                              <CommandItem
-                                key={sp.path}
-                                onSelect={() => {
-                                  updateFilter(i, "path", sp.path);
-                                  setOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    f.path === sp.path ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {sp.path}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  {/* Select com busca (Command) */}
+                  <div className="w-full flex-1 border rounded-md">
+                    <Command>
+                      <CommandInput placeholder="Search field..." />
+                      <CommandList>
+                        <CommandEmpty>No results found.</CommandEmpty>
+                        <CommandGroup>
+                          {stringPaths.map((sp) => (
+                            <CommandItem
+                              key={sp.path}
+                              onSelect={() => updateFilter(i, "path", sp.path)}
+                            >
+                              {sp.path}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </div>
 
-                  {/* Select de valores */}
+                  {/* Select normal de valores */}
                   <Select
                     onValueChange={(value) => updateFilter(i, "value", value)}
                     value={f.value}
@@ -260,6 +235,7 @@ export default function FilterPage() {
             })}
           </div>
 
+          {/* Botão de adicionar filtro */}
           <Button
             variant="outline"
             onClick={addFilter}
@@ -268,6 +244,7 @@ export default function FilterPage() {
             <Plus className="w-4 h-4" /> Add filter
           </Button>
 
+          {/* Info */}
           <p className="text-sm text-muted-foreground mt-4">
             {filters.length
               ? `Showing ${filteredPlants.length} taxa matching selected filters.`
@@ -275,7 +252,7 @@ export default function FilterPage() {
           </p>
         </main>
 
-        {/* Coluna direita */}
+        {/* Painel direito: imagens */}
         <ScrollArea className="border-l border-border flex-1 overflow-auto p-4 dark-scrollbar">
           <Card className="bg-card text-card-foreground">
             <CardHeader>
