@@ -53,8 +53,7 @@ export default function FilterPage() {
   function extractStringPaths(data: any[]): { path: string; options: string[] }[] {
     const paths: Record<string, Set<string>> = {};
     
-    function traverse(obj: any, currentPath: string = "", depth: number = 0) {
-      if (depth > 6) return;
+    function traverse(obj: any, currentPath: string = "") {
       if (obj === null || obj === undefined) return;
 
       if (typeof obj === 'object') {
@@ -62,58 +61,55 @@ export default function FilterPage() {
           const newPath = currentPath ? `${currentPath}.${key}` : key;
           
           if (value !== null && value !== undefined) {
-            // Só adiciona valores primitivos reais
-            if (typeof value === 'string' && value.trim() !== '') {
-              if (!paths[newPath]) paths[newPath] = new Set();
-              paths[newPath].add(value);
-            } else if (typeof value === 'number' || typeof value === 'boolean') {
+            // Para valores primitivos
+            if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+              if (typeof value === 'string' && value.trim() === '') continue;
+              
               if (!paths[newPath]) paths[newPath] = new Set();
               paths[newPath].add(value.toString());
-            } else if (Array.isArray(value)) {
-              // Para arrays, processa apenas valores primitivos dos itens
-              value.slice(0, 5).forEach((item) => {
-                if (typeof item === 'string' && item.trim() !== '') {
-                  if (!paths[newPath]) paths[newPath] = new Set();
-                  paths[newPath].add(item);
-                } else if (typeof item === 'number' || typeof item === 'boolean') {
+            } 
+            // Para arrays
+            else if (Array.isArray(value)) {
+              // Processa cada item do array
+              value.forEach((item) => {
+                if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+                  if (typeof item === 'string' && item.trim() === '') return;
+                  
                   if (!paths[newPath]) paths[newPath] = new Set();
                   paths[newPath].add(item.toString());
+                } else if (typeof item === 'object' && item !== null) {
+                  // Se o item for um objeto, continua a travessia
+                  traverse(item, newPath);
                 }
               });
-            } else if (typeof value === 'object') {
-              // Continua recursão para objetos
-              traverse(value, newPath, depth + 1);
+            }
+            // Para objetos aninhados
+            else if (typeof value === 'object') {
+              traverse(value, newPath);
             }
           }
         }
       }
     }
 
-    // Processa uma amostra dos dados
-    const sampleData = data.slice(0, 8);
-    sampleData.forEach((item) => {
+    // Processa todos os dados para garantir que capture todos os valores
+    data.forEach((item) => {
       traverse(item);
     });
 
     // Filtra e limpa os resultados
-    return Object.entries(paths)
+    const result = Object.entries(paths)
       .map(([path, set]) => ({
         path,
         options: Array.from(set)
-          .filter(opt => 
-            opt && 
-            typeof opt === 'string' && 
-            opt.trim() !== '' &&
-            !opt.startsWith('[') && 
-            !opt.includes('array') && 
-            opt !== '[object]' &&
-            opt !== 'object'
-          )
+          .filter(opt => opt && opt.trim() !== '')
           .sort()
-          .slice(0, 100),
       }))
       .filter(item => item.options.length > 0)
       .sort((a, b) => a.path.localeCompare(b.path));
+
+    console.log("Extracted paths:", result);
+    return result;
   }
 
   function extractImagesWithPaths(obj: any, path: string[] = []) {
@@ -142,7 +138,11 @@ export default function FilterPage() {
         const extractedPaths = extractStringPaths(data);
         setStringPaths(extractedPaths);
         console.log("Total paths extracted:", extractedPaths.length);
-        console.log("Sample paths:", extractedPaths.slice(0, 10));
+        
+        // Debug: verificar se flower.merism existe e quais valores tem
+        const flowerMerism = extractedPaths.find(p => p.path === "flower.merism");
+        console.log("flower.merism values:", flowerMerism?.options);
+        
         setFilteredPlants(data);
       })
       .catch((error) => {
@@ -167,7 +167,8 @@ export default function FilterPage() {
     const filtered = plants.filter((p) =>
       activeFilters.every((f) => {
         if (f.mode === "property_value") {
-          return getByPath(p, f.path) === f.value;
+          const value = getByPath(p, f.path);
+          return value === f.value;
         } else if (f.mode === "property") {
           return getByPath(p, f.path) !== undefined;
         }
