@@ -15,13 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Icon } from "@iconify/react";
 import graphqlIcon from "@iconify/icons-logos/graphql";
 
-export default function Header({
-  searchTerm,
-  setSearchTerm,
-}: {
-  searchTerm: string;
-  setSearchTerm: (v: string) => void;
-}) {
+export default function Header() {
   return (
     <header className="border-b border-border bg-card p-3 flex flex-col gap-2">
       <div className="flex items-center gap-2">
@@ -89,17 +83,6 @@ export default function Header({
             color="currentColor"   // 🔥 força ficar cinza como Lucide
           />
         </Link>
-
-        <div className="ml-auto flex items-center gap-2">
-          <Search className="w-5 h-5 text-muted-foreground" />
-
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search JSON paths..."
-            className="w-56"
-          />
-        </div>
       </div>
     </header>
   );
