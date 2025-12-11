@@ -2,11 +2,9 @@
 
 "use client";
 
-import { useState } from "react";
 import Header from "./header";
 
 export default function Graphql() {
-  const [searchTerm, setSearchTerm] = useState("");
 
   return (
     <div className="w-full h-screen flex flex-col bg-background text-foreground overflow-hidden">
