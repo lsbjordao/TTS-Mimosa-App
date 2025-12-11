@@ -77,9 +77,9 @@ export default function Header({
           href="/graphql"
           rel="noopener noreferrer"
           className="flex items-center"
-          title="Filter"
+          title="Graphql"
         >
-          <Icon icon={graphqlIcon} color="currentColor" className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
+          <Icon icon={graphqlIcon} className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
         </Link>
 
         <div className="ml-auto flex items-center gap-2">

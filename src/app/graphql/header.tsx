@@ -3,9 +3,15 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Settings, Github, BookOpenText, FileText, ChartPie, Funnel } from "lucide-react";
+import {
+  Search,
+  Github,
+  BookOpenText,
+  FileText,
+  ChartPie,
+  Funnel,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Icon } from "@iconify/react";
 import graphqlIcon from "@iconify/icons-logos/graphql";
 
@@ -66,7 +72,6 @@ export default function Header({
 
         <Link
           href="/filter"
-          rel="noopener noreferrer"
           className="flex items-center"
           title="Filter"
         >
@@ -75,36 +80,25 @@ export default function Header({
 
         <Link
           href="/graphql"
-          rel="noopener noreferrer"
           className="flex items-center"
-          title="Filter"
+          title="GraphQL"
         >
-          <Icon icon={graphqlIcon} color="currentColor" className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
+          <Icon
+            icon={graphqlIcon}
+            className="w-5 h-5 text-muted-foreground hover:text-primary transition"
+            color="currentColor"   // 🔥 força ficar cinza como Lucide
+          />
         </Link>
 
         <div className="ml-auto flex items-center gap-2">
           <Search className="w-5 h-5 text-muted-foreground" />
+
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search JSON paths..."
             className="w-56"
           />
-          {/* <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className="p-2 rounded-md hover:bg-muted transition"
-                title="Configurações"
-              >
-                <Settings className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64">
-              <p className="text-sm text-muted-foreground">
-                Nenhuma configuração disponível ainda.
-              </p>
-            </PopoverContent>
-          </Popover> */}
         </div>
       </div>
     </header>
