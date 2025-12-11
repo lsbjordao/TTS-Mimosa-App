@@ -1,24 +1,38 @@
+// ./src/app/api/graphql/route.ts
+
 import { createYoga, createSchema } from "graphql-yoga";
 import initSqlJs from "sql.js";
-import { NextRequest } from "next/server";
 
-async function loadDb(req: Request) {
+// ---------------------------------------------
+// Tipos do contexto
+// ---------------------------------------------
+type GraphQLContext = {
+  request: Request;
+};
+
+// ---------------------------------------------
+// Carregar DB SQLite a partir do /public
+// ---------------------------------------------
+async function loadDb(request: Request) {
   const SQL = await initSqlJs({
     locateFile: (file) => `https://sql.js.org/dist/${file}`,
   });
 
-  const baseUrl = new URL(req.url).origin;
+  const baseUrl = new URL(request.url).origin;
   const res = await fetch(`${baseUrl}/data/MimosaDB.db`);
   const buffer = await res.arrayBuffer();
 
   return new SQL.Database(new Uint8Array(buffer));
 }
 
-const yoga = createYoga<{
-  req: NextRequest;
-}>({
+// ---------------------------------------------
+// Yoga v5 — usando .fetch()
+// ---------------------------------------------
+const yoga = createYoga<GraphQLContext>({
   graphqlEndpoint: "/api/graphql",
   fetchAPI: { Response },
+
+  context: ({ request }) => ({ request }),
 
   schema: createSchema({
     typeDefs: /* GraphQL */ `
@@ -40,4 +54,13 @@ const yoga = createYoga<{
   }),
 });
 
-export { yoga as GET, yoga as POST };
+// ---------------------------------------------
+// Handlers Next.js 16
+// ---------------------------------------------
+export async function GET(request: Request) {
+  return yoga.fetch(request);
+}
+
+export async function POST(request: Request) {
+  return yoga.fetch(request);
+}
