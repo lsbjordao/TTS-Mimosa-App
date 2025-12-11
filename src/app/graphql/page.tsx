@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import initSqlJs from "sql.js";
 import { graphql, buildSchema } from "graphql";
 import { GraphiQL } from "graphiql";
 import "graphiql/graphiql.css";
@@ -10,45 +9,62 @@ export default function GraphqlPage() {
   const [executeQuery, setExecuteQuery] = useState<any>(null);
 
   useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://sql.js.org/dist/sql-wasm.js";
+    script.onload = init;
+    document.body.appendChild(script);
+
     async function init() {
-      const SQL = await initSqlJs({
-        locateFile: (file) => `https://sql.js.org/dist/${file}`,
+      // @ts-ignore
+      const SQL = await window.initSqlJs({
+        locateFile: (f) => `https://sql.js.org/dist/${f}`,
       });
 
+      // Carrega o banco SQLite
       const res = await fetch("/data/MimosaDB.db");
       const buf = await res.arrayBuffer();
       const db = new SQL.Database(new Uint8Array(buf));
 
-      const result = db.exec("SELECT name FROM sqlite_master WHERE type='table'");
+      // Lista de tabelas
+      const result = db.exec(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+      );
+
+      if (!result.length) return;
+
       const tables = result[0].values.map((r: any[]) => r[0]);
 
-      const typeDefs =
-        `
+      // Sanitizer para campos GraphQL
+      const safe = (name: string) =>
+        name.replace(/[^A-Za-z0-9_]/g, "_");
+
+      // Cria Schema
+      const typeDefs = `
         type Row { json: String! }
 
         type Query {
-          tables: [String!]!,
-          ` +
-        tables.map((t: string) => `${t}: [Row!]!`).join(",") +
-        `
+          tables: [String!]!
+          ${tables.map((t) => `${safe(t)}: [Row!]!`).join("\n")}
         }
       `;
 
       const schema = buildSchema(typeDefs);
 
+      // ROOT resolvers
       const root = {
         tables: () => tables,
         ...Object.fromEntries(
-          tables.map((t: string) => [
-            t,
-            (_: any, context: any) => {
-              console.log("HEADERS RECEBIDOS:", context.headers);
-              const q = db.exec(`SELECT rowid, * FROM ${t}`);
+          tables.map((t) => [
+            safe(t),
+            () => {
+              const q = db.exec(`SELECT rowid, * FROM "${t}"`);
               if (!q.length) return [];
-              const columns = q[0].columns;
+
+              const cols = q[0].columns;
+
               return q[0].values.map((row: any[]) => {
                 const obj: any = {};
-                columns.forEach((col, i) => (obj[col] = row[i]));
+                cols.forEach((c, i) => (obj[c] = row[i]));
                 return { json: JSON.stringify(obj) };
               });
             },
@@ -56,32 +72,21 @@ export default function GraphqlPage() {
         ),
       };
 
-      // 🔥 Aqui adicionamos HEADERS dentro do contexto
       const runQuery = async (params: any) => {
-        const resp = await graphql({
+        return graphql({
           schema,
           source: params.query,
           variableValues: params.variables,
           rootValue: root,
-          contextValue: {
-            headers: {
-              "x-api-key": "123456",
-              "authorization": "Bearer ABC",
-              "custom-header": "Mimosa Rocks",
-            },
-          },
         });
-
-        return resp;
       };
 
       setExecuteQuery(() => runQuery);
     }
-
-    init();
   }, []);
 
-  if (!executeQuery) return <div>Carregando SQLite + GraphQL...</div>;
+  if (!executeQuery)
+    return <div>Carregando SQLite + GraphQL...</div>;
 
   return (
     <div className="w-full h-screen">
