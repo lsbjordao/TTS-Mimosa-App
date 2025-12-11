@@ -21,7 +21,7 @@ export default function GraphqlPage() {
       });
 
       // Carrega o banco SQLite
-      const res = await fetch("/data/MimosaDB.db");
+      const res = await fetch("data/MimosaDB.db");
       const buf = await res.arrayBuffer();
       const db = new SQL.Database(new Uint8Array(buf));
 
