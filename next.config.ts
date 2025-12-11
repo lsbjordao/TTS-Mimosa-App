@@ -4,7 +4,6 @@ const nextConfig: NextConfig = {
   // basePath: "/TTS-Mimosa-App",
   output: "export",
   reactStrictMode: true,
-
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -15,19 +14,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "blogger.googleusercontent.com" },
     ],
   },
-
   reactCompiler: true,
-
-  webpack: (config) => {
-    // Correção necessária para sql.js
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      path: false,
-    };
-
-    return config;
-  },
 };
 
 export default nextConfig;
