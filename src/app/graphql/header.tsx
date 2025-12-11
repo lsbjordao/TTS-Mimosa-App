@@ -1,4 +1,4 @@
-// ./src/app/analytics/header.tsx
+// ./src/app/graphql/header.tsx
 
 "use client";
 

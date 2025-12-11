@@ -263,12 +263,12 @@ export default function Home() {
           </Link>
 
           <Link
-            href="/filter"
+            href="/graphql"
             rel="noopener noreferrer"
             className="flex items-center"
             title="Filter"
           >
-            <Icon icon={graphqlIcon} className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
+            <Icon icon={graphqlIcon} color="currentColor" className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
           </Link>
 
           <Search className="w-5 h-5 text-muted-foreground" />

@@ -5,6 +5,8 @@
 import Link from "next/link";
 import { Settings, Github, BookOpenText, FileText, ChartPie, Funnel } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Icon } from "@iconify/react";
+import graphqlIcon from "@iconify/icons-logos/graphql";
 
 export default function Header() {
   return (
@@ -63,7 +65,16 @@ export default function Header() {
         >
           <Funnel className="w-5 h-5 text-muted-foreground" />
         </Link>
-        
+
+        <Link
+          href="/graphql"
+          rel="noopener noreferrer"
+          className="flex items-center"
+          title="Filter"
+        >
+          <Icon icon={graphqlIcon} color="currentColor" className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
+        </Link>
+
         {/* <div className="ml-auto flex items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
