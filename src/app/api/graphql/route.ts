@@ -1,20 +1,24 @@
 import { createYoga, createSchema } from "graphql-yoga";
-import { NextRequest } from "next/server";
 import initSqlJs from "sql.js";
+import { NextRequest } from "next/server";
 
-let dbPromise = fetch(new URL("../../../../public/data/MimosaDB.db", import.meta.url))
-  .then((res) => res.arrayBuffer())
-  .then(async (buffer) => {
-    const SQL = await initSqlJs({
-      locateFile: (file) => `https://sql.js.org/dist/${file}`,
-    });
-    return new SQL.Database(new Uint8Array(buffer));
+async function loadDb(req: Request) {
+  const SQL = await initSqlJs({
+    locateFile: (file) => `https://sql.js.org/dist/${file}`,
   });
+
+  const baseUrl = new URL(req.url).origin;
+  const res = await fetch(`${baseUrl}/data/MimosaDB.db`);
+  const buffer = await res.arrayBuffer();
+
+  return new SQL.Database(new Uint8Array(buffer));
+}
 
 const yoga = createYoga<{
   req: NextRequest;
 }>({
   graphqlEndpoint: "/api/graphql",
+  fetchAPI: { Response },
 
   schema: createSchema({
     typeDefs: /* GraphQL */ `
@@ -24,8 +28,8 @@ const yoga = createYoga<{
     `,
     resolvers: {
       Query: {
-        tables: async () => {
-          const db = await dbPromise;
+        tables: async (_root, _args, ctx) => {
+          const db = await loadDb(ctx.request);
           const result = db.exec(
             "SELECT name FROM sqlite_master WHERE type='table'"
           );
@@ -34,9 +38,6 @@ const yoga = createYoga<{
       },
     },
   }),
-
-  fetchAPI: { Response },
 });
 
-// ⚠️ Next.js exige nome GET/POST
 export { yoga as GET, yoga as POST };
