@@ -25,6 +25,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "graphiql": "^5.2.2",
+    "graphql": "^16.12.0",
     "graphql-ws": "^6.0.6",
     "graphql-yoga": "^5.17.1",
     "lucide-react": "^0.552.0",
