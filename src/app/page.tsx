@@ -15,6 +15,8 @@ import {
   ChartPie,
   Funnel
 } from "lucide-react";
+import { Icon } from "@iconify/react";
+import graphqlIcon from "@iconify/icons-logos/graphql";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -258,6 +260,15 @@ export default function Home() {
             title="Filter"
           >
             <Funnel className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
+          </Link>
+
+          <Link
+            href="/filter"
+            rel="noopener noreferrer"
+            className="flex items-center"
+            title="Filter"
+          >
+            <Icon icon={graphqlIcon} className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
           </Link>
 
           <Search className="w-5 h-5 text-muted-foreground" />
