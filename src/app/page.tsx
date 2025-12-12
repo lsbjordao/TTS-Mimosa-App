@@ -262,14 +262,14 @@ export default function Home() {
             <Funnel className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
           </Link>
 
-          <Link
+          {/* <Link
             href="/graphql"
             rel="noopener noreferrer"
             className="flex items-center"
             title="Graphql"
           >
             <Icon icon={graphqlIcon} color="currentColor" className="w-5 h-5 text-muted-foreground hover:text-primary transition" />
-          </Link>
+          </Link> */}
 
           <Search className="w-5 h-5 text-muted-foreground" />
           <Input
