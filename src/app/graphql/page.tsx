@@ -28,7 +28,7 @@ export default function GraphqlPage() {
         });
 
         // Carrega o banco de dados
-        const res = await fetch("/data/MimosaDB.db");
+        const res = await fetch("data/MimosaDB.db");
         if (!res.ok) throw new Error("Falha ao carregar o banco de dados");
         const buf = await res.arrayBuffer();
         const db = new SQL.Database(new Uint8Array(buf));
