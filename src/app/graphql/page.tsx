@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { graphql, buildSchema } from "graphql";
 import { GraphiQL } from "graphiql";
 import "graphiql/graphiql.css";
+import "./graphiql-fix.css"; // Vamos criar este arquivo
 
 // Inicialização do SQL.js
 declare global {
   interface Window {
     initSqlJs: any;
+    SQL: any;
   }
 }
 
@@ -16,19 +18,32 @@ export default function GraphqlPage() {
   const [fetcher, setFetcher] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const graphiqlContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let mounted = true;
 
     async function initialize() {
       try {
+        // Verifica se o SQL.js já está carregado
+        if (!window.initSqlJs) {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://sql.js.org/dist/sql-wasm.js';
+            script.async = true;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+
         // Carrega o SQL.js
         const SQL = await window.initSqlJs({
           locateFile: (f: string) => `https://sql.js.org/dist/${f}`,
         });
 
         // Carrega o banco de dados
-        const res = await fetch("data/MimosaDB.db");
+        const res = await fetch("/data/MimosaDB.db");
         if (!res.ok) throw new Error("Falha ao carregar o banco de dados");
         const buf = await res.arrayBuffer();
         const db = new SQL.Database(new Uint8Array(buf));
@@ -48,17 +63,14 @@ export default function GraphqlPage() {
         const safeName = (name: string) => 
           name.replace(/[^A-Za-z0-9_]/g, "_").replace(/^[0-9]/, "_$&");
 
-        // Constrói o schema GraphQL
+        // Constrói tipos GraphQL dinamicamente para cada tabela
         const typeDefs = `
-          type JSONRow {
-            rowid: Int!
-            json: String!
-          }
+          scalar JSON
 
           type Query {
             tables: [String!]!
             ${tables.map((table: string) => 
-              `${safeName(table)}(limit: Int, offset: Int): [JSONRow!]!`
+              `${safeName(table)}(limit: Int = 10, offset: Int = 0): [JSON!]!`
             ).join("\n")}
           }
         `;
@@ -71,31 +83,32 @@ export default function GraphqlPage() {
           ...Object.fromEntries(
             tables.map((table: string) => [
               safeName(table),
-              ({ limit = 100, offset = 0 }: { limit?: number; offset?: number }) => {
+              ({ limit = 10, offset = 0 }: { limit?: number; offset?: number }) => {
                 try {
-                  // Obtém as colunas da tabela
+                  // Obtém informações das colunas
                   const pragmaResult = db.exec(`PRAGMA table_info("${table}")`);
                   if (!pragmaResult.length) return [];
-                  const columns = pragmaResult[0].values.map((col: any[]) => col[1]);
-
-                  // Constrói a query selecionando cada coluna
-                  const selectColumns = columns.map((col: string) => `"${col}"`).join(', ');
-                  const query = `SELECT rowid, ${selectColumns} FROM "${table}" LIMIT ? OFFSET ?`;
                   
+                  const columns = pragmaResult[0].values.map((col: any[]) => col[1]);
+                  const selectColumns = columns.map((col: any) => `"${col}"`).join(', ');
+                  
+                  const query = `SELECT ${selectColumns} FROM "${table}" LIMIT ? OFFSET ?`;
                   const result = db.exec(query, [limit, offset]);
                   
                   if (!result.length) return [];
                   
-                  // Para cada linha, construir um objeto JSON
+                  const columnNames = result[0].columns;
                   return result[0].values.map((row: any[]) => {
-                    const obj: any = { rowid: row[0] };
-                    columns.forEach((col: string, index: number) => {
-                      obj[col] = row[index + 1]; // rowid é o primeiro, então desloca 1
+                    const obj: any = {};
+                    columnNames.forEach((col: string, index: number) => {
+                      // Converte valores para tipos apropriados
+                      const value = row[index];
+                      obj[col] = value === null ? null : 
+                        typeof value === 'number' ? value :
+                        typeof value === 'boolean' ? value :
+                        String(value);
                     });
-                    return {
-                      rowid: row[0],
-                      json: JSON.stringify(obj)
-                    };
+                    return obj;
                   });
                 } catch (err) {
                   console.error(`Erro na tabela ${table}:`, err);
@@ -104,6 +117,21 @@ export default function GraphqlPage() {
               }
             ])
           )
+        };
+
+        // Cria um scalar resolver para JSON
+        const scalarJSON = {
+          JSON: {
+            __serialize: (value: any) => value,
+            __parseValue: (value: any) => value,
+            __parseLiteral: (ast: any) => {
+              try {
+                return JSON.parse(ast.value);
+              } catch {
+                return ast.value;
+              }
+            }
+          }
         };
 
         // Cria o fetcher para o GraphiQL
@@ -121,7 +149,8 @@ export default function GraphqlPage() {
             return {
               errors: [{
                 message: error.message || "Erro desconhecido",
-                stack: error.stack
+                locations: error.locations,
+                path: error.path
               }]
             };
           }
@@ -140,34 +169,25 @@ export default function GraphqlPage() {
       }
     }
 
-    // Carrega o script do SQL.js
-    const loadSQL = async () => {
-      if (typeof window !== 'undefined' && !window.initSqlJs) {
-        return new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://sql.js.org/dist/sql-wasm.js';
-          script.async = true;
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-      }
-      return Promise.resolve();
-    };
-
-    loadSQL()
-      .then(() => initialize())
-      .catch((err) => {
-        if (mounted) {
-          setError(err.message);
-          setLoading(false);
-        }
-      });
+    // Pequeno delay para garantir que o DOM esteja pronto
+    setTimeout(() => {
+      initialize();
+    }, 100);
 
     return () => {
       mounted = false;
     };
   }, []);
+
+  // Efeito para forçar redimensionamento após carregamento
+  useEffect(() => {
+    if (!loading && !error && fetcher) {
+      // Dispara um evento de redimensionamento para o GraphiQL
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 100);
+    }
+  }, [loading, error, fetcher]);
 
   if (loading) {
     return (
@@ -186,40 +206,27 @@ export default function GraphqlPage() {
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-6 max-w-md">
           <h2 className="text-lg font-bold mb-2">Erro</h2>
           <p>{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!fetcher) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <p>Não foi possível inicializar o GraphiQL</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-red-100 hover:bg-red-200 rounded text-red-800 font-medium"
+          >
+            Recarregar
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-screen">
-      <GraphiQL 
-        fetcher={fetcher}
-        defaultQuery={`# Bem-vindo ao GraphiQL
-# Você pode listar as tabelas disponíveis com:
-query ListTables {
-  tables
-}
-
-# Ou consultar uma tabela (substitua "nome_da_tabela" pelo nome real)
-# query GetData {
-#   nome_da_tabela(limit: 10) {
-#     rowid
-#     json
-#   }
-# }
-`}
-      />
+    <div className="w-full h-screen" ref={graphiqlContainerRef}>
+      {fetcher && (
+        <GraphiQL 
+          fetcher={fetcher}
+          defaultEditorToolsVisibility={true}
+          isHeadersEditorEnabled={false}
+          shouldPersistHeaders={false}
+        />
+      )}
     </div>
   );
 }
